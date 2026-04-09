@@ -1,0 +1,9 @@
+node_modules/
+dist/
+packages/*/dist/
+packages/*/node_modules/
+.env.local
+.DS_Store
+session.md
+.claude
+design-doc.md
