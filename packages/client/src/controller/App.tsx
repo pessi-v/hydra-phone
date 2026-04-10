@@ -8,12 +8,102 @@ import { SubChainTransformColumn } from './components/SubChainTransformColumn';
 import { ControlsColumn } from './components/ControlsColumn';
 import { CodeView } from './components/CodeView';
 import { CATEGORY_COLORS, PAGE_BG } from './lib/constants';
+import type { FunctionNode } from './types';
 
 const MAX_VISIBLE_COLS = 7;
 
-// In portrait mode, rotate the UI 90° so the layout always appears landscape.
-// The rotated container is sized to the landscape dimensions (100vh × 100vw)
-// and offset so it stays centered in the portrait viewport.
+// ── Recursive column builder ─────────────────────────────────────────────────
+//
+// Walks a list of transforms (at any nesting depth) and produces a flat list
+// of column entries. When a blend/modulate node is expanded, the builder
+// recurses into its sub-chain, inserting those columns immediately after.
+//
+// path = []      → transforms are from the main chain
+// path = [2]     → transforms are from chain.transforms[2].subChain
+// path = [2,1]   → transforms are from ...transforms[2].subChain.transforms[1].subChain
+
+type ColEntry = { key: string; el: React.ReactNode };
+
+function buildCols(
+  chainId: string,
+  transforms: FunctionNode[],
+  path: number[],
+  parentBlendColor: string | null, // null = main chain (use TransformColumn)
+  expandedBlends: Set<string>,
+  toggleBlend: (id: string) => void,
+): ColEntry[] {
+  const cols: ColEntry[] = [];
+
+  for (let i = 0; i < transforms.length; i++) {
+    const t = transforms[i];
+    const childPath = [...path, i];
+    const pathKey = childPath.join('-');
+    const isBlend = t.type === 'combine' || t.type === 'combineCoord';
+    const expanded = isBlend && !!t.blendId && expandedBlends.has(t.blendId);
+    const ownColor = CATEGORY_COLORS[t.type];
+    const toggle = isBlend && t.blendId ? () => toggleBlend(t.blendId!) : undefined;
+
+    if (parentBlendColor === null) {
+      // Main-chain transform
+      cols.push({
+        key: `t-${pathKey}`,
+        el: (
+          <TransformColumn
+            chainId={chainId}
+            index={i}
+            subChainExpanded={expanded}
+            onToggleSubChain={toggle}
+          />
+        ),
+      });
+    } else {
+      // Sub-chain transform (any depth)
+      cols.push({
+        key: `t-${pathKey}`,
+        el: (
+          <SubChainTransformColumn
+            chainId={chainId}
+            path={path}
+            subIndex={i}
+            blendColor={parentBlendColor}
+            subChainExpanded={expanded}
+            onToggleSubChain={toggle}
+          />
+        ),
+      });
+    }
+
+    // If this blend node is expanded, insert its sub-chain columns next
+    if (expanded && t.subChain) {
+      cols.push({
+        key: `src-${pathKey}`,
+        el: (
+          <SubChainSourceColumn
+            chainId={chainId}
+            path={childPath}
+            blendColor={ownColor}
+          />
+        ),
+      });
+
+      cols.push(
+        ...buildCols(
+          chainId,
+          t.subChain.transforms,
+          childPath,
+          ownColor,
+          expandedBlends,
+          toggleBlend,
+        ),
+      );
+    }
+  }
+
+  return cols;
+}
+
+// ── LandscapeAdapter ─────────────────────────────────────────────────────────
+
 function LandscapeAdapter({ children }: { children: React.ReactNode }) {
   const [isPortrait, setIsPortrait] = useState(
     () => window.innerHeight > window.innerWidth
@@ -30,9 +120,7 @@ function LandscapeAdapter({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  if (!isPortrait) {
-    return <>{children}</>;
-  }
+  if (!isPortrait) return <>{children}</>;
 
   return (
     <div style={{
@@ -78,73 +166,39 @@ function PairingOverlay({ sessionId }: { sessionId: string }) {
   );
 }
 
+// ── App ──────────────────────────────────────────────────────────────────────
+
 export function App() {
   const [codeVisible, setCodeVisible] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [thumbLeft, setThumbLeft] = useState(0);
   const [thumbWidth, setThumbWidth] = useState(100);
 
-  // Tracks which blend/modulate nodes have their sub-chain expanded.
-  // Key is the node's stable blendId.
+  // blendId of every blend/modulate node whose sub-chain is currently expanded
   const [expandedBlends, setExpandedBlends] = useState<Set<string>>(new Set());
 
   const chain = usePatchStore(s => s.patch.chains[0]);
   const { status, sessionId } = useWsStore();
 
-  const toggleBlend = useCallback((blendId: string) => {
+  const toggleBlend = useCallback((id: string) => {
     setExpandedBlends(prev => {
       const next = new Set(prev);
-      if (next.has(blendId)) next.delete(blendId);
-      else next.add(blendId);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
 
-  // ── Build column descriptor list ────────────────────────────────────────
-  // Each entry carries the key and the JSX element to render.
-  type ColEntry = { key: string; el: React.ReactNode };
-  const cols: ColEntry[] = [];
-
-  cols.push({ key: 'src', el: <SourceColumn chainId={chain.id} /> });
-
-  for (let i = 0; i < chain.transforms.length; i++) {
-    const t = chain.transforms[i];
-    const isBlend = t.type === 'combine' || t.type === 'combineCoord';
-    const { blendId } = t;
-    const expanded = isBlend && !!blendId && expandedBlends.has(blendId);
-    const blendColor = CATEGORY_COLORS[t.type];
-
-    cols.push({
-      key: `t-${i}`,
-      el: (
-        <TransformColumn
-          chainId={chain.id}
-          index={i}
-          subChainExpanded={expanded}
-          onToggleSubChain={isBlend && blendId ? () => toggleBlend(blendId) : undefined}
-        />
-      ),
-    });
-
-    if (expanded && t.subChain) {
-      cols.push({
-        key: `${blendId}-src`,
-        el: <SubChainSourceColumn chainId={chain.id} tIdx={i} blendColor={blendColor} />,
-      });
-      t.subChain.transforms.forEach((_, si) => {
-        cols.push({
-          key: `${blendId}-t${si}`,
-          el: <SubChainTransformColumn chainId={chain.id} tIdx={i} subIndex={si} blendColor={blendColor} />,
-        });
-      });
-    }
-  }
+  // Build the flat column list (source + recursively expanded transforms)
+  const cols: ColEntry[] = [
+    { key: 'src', el: <SourceColumn chainId={chain.id} /> },
+    ...buildCols(chain.id, chain.transforms, [], null, expandedBlends, toggleBlend),
+  ];
 
   const numCols = cols.length;
   const needsScroll = numCols > MAX_VISIBLE_COLS;
   const colFlex = needsScroll ? `0 0 calc(100% / ${MAX_VISIBLE_COLS})` : '1 1 0';
 
-  // ── Scrollbar thumb ─────────────────────────────────────────────────────
   const updateThumb = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -164,9 +218,7 @@ export function App() {
 
   return (
     <LandscapeAdapter>
-      {status !== 'paired' && sessionId && (
-        <PairingOverlay sessionId={sessionId} />
-      )}
+      {status !== 'paired' && sessionId && <PairingOverlay sessionId={sessionId} />}
       {!sessionId && (
         <div style={{
           position: 'fixed', inset: 0, background: PAGE_BG,
@@ -177,7 +229,6 @@ export function App() {
         </div>
       )}
 
-      {/* Main editor — always rendered so state is preserved */}
       <div style={{
         display: 'flex',
         width: '100%',
@@ -187,7 +238,6 @@ export function App() {
       }}>
         <style>{`.cols-scroll::-webkit-scrollbar { display: none; }`}</style>
 
-        {/* Scrollable function columns area */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div
             className="cols-scroll"
@@ -209,22 +259,12 @@ export function App() {
             ))}
           </div>
 
-          {/* Decorative (non-interactive) scrollbar shown when columns overflow */}
           {needsScroll && (
-            <div style={{
-              height: 8,
-              background: '#263238',
-              flexShrink: 0,
-              position: 'relative',
-            }}>
+            <div style={{ height: 8, background: '#263238', flexShrink: 0, position: 'relative' }}>
               <div style={{
-                position: 'absolute',
-                top: 0,
-                height: '100%',
-                background: '#546E7A',
-                borderRadius: 4,
-                left: `${thumbLeft}%`,
-                width: `${thumbWidth}%`,
+                position: 'absolute', top: 0, height: '100%',
+                background: '#546E7A', borderRadius: 4,
+                left: `${thumbLeft}%`, width: `${thumbWidth}%`,
                 pointerEvents: 'none',
               }} />
             </div>

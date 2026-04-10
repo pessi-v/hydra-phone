@@ -27,26 +27,39 @@ function makeChain(sourceName = 'osc'): Chain {
   };
 }
 
-// Immutably update transform at tIdx within a chain
-function withTransformNode(
+// ── Recursive path helpers ────────────────────────────────────────────────────
+//
+// `path` is an array of transform indices that navigates to a SubChain:
+//   path = [i0]       → chain.transforms[i0].subChain
+//   path = [i0, i1]   → chain.transforms[i0].subChain.transforms[i1].subChain
+//   etc.
+
+function applyToSubChain(
   chain: Chain,
-  tIdx: number,
-  updater: (t: FunctionNode) => FunctionNode,
+  path: number[],
+  updater: (sc: SubChain) => SubChain,
 ): Chain {
   const transforms = [...chain.transforms];
-  const t = transforms[tIdx];
-  if (!t) return chain;
-  transforms[tIdx] = updater(t);
+  const node = transforms[path[0]];
+  if (!node) return chain;
+  transforms[path[0]] = applyToNode(node, path.slice(1), updater);
   return { ...chain, transforms };
 }
 
-// Immutably update the subChain within a FunctionNode
-function withSubChain(
+function applyToNode(
   node: FunctionNode,
+  remaining: number[],
   updater: (sc: SubChain) => SubChain,
 ): FunctionNode {
   if (!node.subChain) return node;
-  return { ...node, subChain: updater(node.subChain) };
+  if (remaining.length === 0) {
+    return { ...node, subChain: updater(node.subChain) };
+  }
+  const subTransforms = [...node.subChain.transforms];
+  const child = subTransforms[remaining[0]];
+  if (!child) return node;
+  subTransforms[remaining[0]] = applyToNode(child, remaining.slice(1), updater);
+  return { ...node, subChain: { ...node.subChain, transforms: subTransforms } };
 }
 
 interface PatchStore {
@@ -66,12 +79,15 @@ interface PatchStore {
   setTransformArg(chainId: string, index: number, argIndex: number, value: number): void;
 
   // Sub-chain (inside combine / combineCoord transforms)
-  setSubChainSource(chainId: string, tIdx: number, fnName: string): void;
-  setSubChainSourceArg(chainId: string, tIdx: number, argIndex: number, value: number): void;
-  insertSubChainTransform(chainId: string, tIdx: number, index: number, fnName: string): void;
-  replaceSubChainTransform(chainId: string, tIdx: number, index: number, fnName: string): void;
-  removeSubChainTransform(chainId: string, tIdx: number, index: number): void;
-  setSubChainTransformArg(chainId: string, tIdx: number, nodeIdx: number, argIdx: number, value: number): void;
+  // path = [i0, i1, ...] navigates to the SubChain to modify:
+  //   [2]    → chain.transforms[2].subChain
+  //   [2, 1] → chain.transforms[2].subChain.transforms[1].subChain
+  setSubChainSource(chainId: string, path: number[], fnName: string): void;
+  setSubChainSourceArg(chainId: string, path: number[], argIndex: number, value: number): void;
+  insertSubChainTransform(chainId: string, path: number[], index: number, fnName: string): void;
+  replaceSubChainTransform(chainId: string, path: number[], index: number, fnName: string): void;
+  removeSubChainTransform(chainId: string, path: number[], index: number): void;
+  setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, value: number): void;
 
   // Chain-level
   setOutput(chainId: string, output: Chain['output']): void;
@@ -169,108 +185,96 @@ export const usePatchStore = create<PatchStore>((set) => ({
 
   // ── Sub-chain actions ────────────────────────────────────────────────────
 
-  setSubChainSource(chainId, tIdx, fnName) {
+  setSubChainSource(chainId, path, fnName) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
-          return withTransformNode(c, tIdx, t =>
-            withSubChain(t, sc => ({ ...sc, source: makeNode(fnName) }))
-          );
+          return applyToSubChain(c, path, sc => ({ ...sc, source: makeNode(fnName) }));
         }),
       },
     }));
   },
 
-  setSubChainSourceArg(chainId, tIdx, argIndex, value) {
+  setSubChainSourceArg(chainId, path, argIndex, value) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
-          return withTransformNode(c, tIdx, t =>
-            withSubChain(t, sc => {
-              const args = [...sc.source.args];
-              args[argIndex] = { mode: 'static', value };
-              return { ...sc, source: { ...sc.source, args } };
-            })
-          );
+          return applyToSubChain(c, path, sc => {
+            const args = [...sc.source.args];
+            args[argIndex] = { mode: 'static', value };
+            return { ...sc, source: { ...sc.source, args } };
+          });
         }),
       },
     }));
   },
 
-  insertSubChainTransform(chainId, tIdx, index, fnName) {
+  insertSubChainTransform(chainId, path, index, fnName) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
-          return withTransformNode(c, tIdx, t =>
-            withSubChain(t, sc => {
-              const transforms = [...sc.transforms];
-              transforms.splice(index, 0, makeNode(fnName));
-              return { ...sc, transforms };
-            })
-          );
+          return applyToSubChain(c, path, sc => {
+            const transforms = [...sc.transforms];
+            transforms.splice(index, 0, makeNode(fnName));
+            return { ...sc, transforms };
+          });
         }),
       },
     }));
   },
 
-  replaceSubChainTransform(chainId, tIdx, index, fnName) {
+  replaceSubChainTransform(chainId, path, index, fnName) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
-          return withTransformNode(c, tIdx, t =>
-            withSubChain(t, sc => {
-              const transforms = [...sc.transforms];
-              transforms[index] = makeNode(fnName);
-              return { ...sc, transforms };
-            })
-          );
+          return applyToSubChain(c, path, sc => {
+            const transforms = [...sc.transforms];
+            transforms[index] = makeNode(fnName);
+            return { ...sc, transforms };
+          });
         }),
       },
     }));
   },
 
-  removeSubChainTransform(chainId, tIdx, index) {
+  removeSubChainTransform(chainId, path, index) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
-          return withTransformNode(c, tIdx, t =>
-            withSubChain(t, sc => ({
-              ...sc,
-              transforms: sc.transforms.filter((_, i) => i !== index),
-            }))
-          );
+          return applyToSubChain(c, path, sc => ({
+            ...sc,
+            transforms: sc.transforms.filter((_, i) => i !== index),
+          }));
         }),
       },
     }));
   },
 
-  setSubChainTransformArg(chainId, tIdx, nodeIdx, argIdx, value) {
+  setSubChainTransformArg(chainId, path, nodeIdx, argIdx, value) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
-          return withTransformNode(c, tIdx, t =>
-            withSubChain(t, sc => {
-              const transforms = [...sc.transforms];
-              const node = transforms[nodeIdx];
-              if (!node) return sc;
-              const args = [...node.args];
-              args[argIdx] = { mode: 'static', value };
-              transforms[nodeIdx] = { ...node, args };
-              return { ...sc, transforms };
-            })
-          );
+          return applyToSubChain(c, path, sc => {
+            const transforms = [...sc.transforms];
+            const node = transforms[nodeIdx];
+            if (!node) return sc;
+            const args = [...node.args];
+            args[argIdx] = { mode: 'static', value };
+            transforms[nodeIdx] = { ...node, args };
+            return { ...sc, transforms };
+          });
         }),
       },
     }));

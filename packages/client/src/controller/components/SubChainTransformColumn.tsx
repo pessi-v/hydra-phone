@@ -4,22 +4,45 @@ import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
 import { FunctionPicker } from "./FunctionPicker";
+import { BlendIndicator } from "./BlendSubChain";
+import type { Chain, FunctionNode } from "../types";
+
+// Navigate path [i0, i1, ...] to get subChain.transforms[subIndex]
+function getNodeAtPath(chain: Chain, path: number[], subIndex: number): FunctionNode | undefined {
+  let node: FunctionNode | undefined = chain.transforms[path[0]];
+  for (let i = 1; i < path.length; i++) {
+    node = node?.subChain?.transforms[path[i]];
+  }
+  return node?.subChain?.transforms[subIndex];
+}
 
 interface Props {
   chainId: string;
-  tIdx: number;      // index of the blend transform in the main chain
-  subIndex: number;  // index within the sub-chain's transforms array
+  /** Path to the containing SubChain. e.g. [2] or [2,1] */
+  path: number[];
+  subIndex: number;
   blendColor: string;
+  subChainExpanded?: boolean;
+  onToggleSubChain?: () => void;
 }
 
-export function SubChainTransformColumn({ chainId, tIdx, subIndex, blendColor }: Props) {
+export function SubChainTransformColumn({
+  chainId,
+  path,
+  subIndex,
+  blendColor,
+  subChainExpanded,
+  onToggleSubChain,
+}: Props) {
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
-  const transform = usePatchStore(
-    (s) =>
-      s.patch.chains.find((c) => c.id === chainId)?.transforms[tIdx]?.subChain?.transforms[subIndex],
-  );
+  const transform = usePatchStore((s) => {
+    const chain = s.patch.chains.find((c) => c.id === chainId);
+    if (!chain) return undefined;
+    return getNodeAtPath(chain, path, subIndex);
+  });
+
   const replaceSubChainTransform = usePatchStore((s) => s.replaceSubChainTransform);
   const removeSubChainTransform = usePatchStore((s) => s.removeSubChainTransform);
   const insertSubChainTransform = usePatchStore((s) => s.insertSubChainTransform);
@@ -69,7 +92,7 @@ export function SubChainTransformColumn({ chainId, tIdx, subIndex, blendColor }:
           {transform.name}
         </button>
         <button
-          onClick={() => removeSubChainTransform(chainId, tIdx, subIndex)}
+          onClick={() => removeSubChainTransform(chainId, path, subIndex)}
           style={{
             background: color + "aa",
             border: "none",
@@ -97,27 +120,19 @@ export function SubChainTransformColumn({ chainId, tIdx, subIndex, blendColor }:
             max={argDef.max}
             step={argDef.step}
             color={color}
-            onChange={(v) => setSubChainTransformArg(chainId, tIdx, subIndex, i, v)}
+            onChange={(v) => setSubChainTransformArg(chainId, path, subIndex, i, v)}
           />
         ))}
 
-        {/* Nested blend: show static indicator, no recursive expansion */}
-        {transform.subChain && (
-          <div
-            style={{
-              padding: "4px 6px",
-              fontSize: 9,
-              color: "#607D8B",
-              fontFamily: "monospace",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ▶{" "}
-            {[transform.subChain.source.name, ...transform.subChain.transforms.map((t) => t.name)].join(
-              "·",
-            )}
+        {/* Expand/collapse indicator for nested blend/modulate */}
+        {transform.subChain && onToggleSubChain && (
+          <div style={{ padding: "0 6px" }}>
+            <BlendIndicator
+              subChain={transform.subChain}
+              expanded={!!subChainExpanded}
+              blendColor={color}
+              onToggle={onToggleSubChain}
+            />
           </div>
         )}
 
@@ -150,14 +165,14 @@ export function SubChainTransformColumn({ chainId, tIdx, subIndex, blendColor }:
       {replacePicker && (
         <FunctionPicker
           position="transform"
-          onSelect={(name) => replaceSubChainTransform(chainId, tIdx, subIndex, name)}
+          onSelect={(name) => replaceSubChainTransform(chainId, path, subIndex, name)}
           onClose={() => setReplacePicker(false)}
         />
       )}
       {addPicker && (
         <FunctionPicker
           position="transform"
-          onSelect={(name) => insertSubChainTransform(chainId, tIdx, subIndex + 1, name)}
+          onSelect={(name) => insertSubChainTransform(chainId, path, subIndex + 1, name)}
           onClose={() => setAddPicker(false)}
         />
       )}
