@@ -13,7 +13,12 @@ interface Props {
   onToggleSubChain?: () => void;
 }
 
-export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubChain }: Props) {
+export function TransformColumn({
+  chainId,
+  index,
+  subChainExpanded,
+  onToggleSubChain,
+}: Props) {
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
@@ -140,7 +145,7 @@ export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubC
         }}
         title="Add function after"
       >
-        + add
+        • add
       </button>
 
       {replacePicker && (

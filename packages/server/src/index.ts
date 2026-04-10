@@ -1,9 +1,27 @@
 import { createServer, IncomingMessage } from 'http';
 import { networkInterfaces, hostname } from 'os';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { join, extname, resolve } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { URL } from 'url';
 
-// ─── LAN IP detection ─────────────────────────────────────────────────────────
+// ─── Environment ──────────────────────────────────────────────────────────────
+
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+
+/**
+ * When set, returned in /api/host so the display builds the QR URL using the
+ * public domain instead of the LAN IP / mDNS hostname.
+ */
+const PUBLIC_HOST = process.env.PUBLIC_HOST ?? null;
+
+/**
+ * When set, the server serves the Vite-built client from this directory.
+ * Typically /srv/static in the Docker image.
+ */
+const STATIC_DIR = process.env.STATIC_DIR ? resolve(process.env.STATIC_DIR) : null;
+
+// ─── LAN IP / mDNS detection ─────────────────────────────────────────────────
 
 function getLanIp(): string | null {
   for (const ifaces of Object.values(networkInterfaces())) {
@@ -17,14 +35,49 @@ function getLanIp(): string | null {
 }
 
 const LAN_IP = getLanIp();
-// macOS/iOS/Linux Bonjour mDNS: <hostname>.local resolves over the LAN
 const rawHostname = hostname();
 const MDNS_HOST = rawHostname.endsWith('.local') ? rawHostname : `${rawHostname}.local`;
 
-console.log(`LAN IP: ${LAN_IP ?? 'not found'}`);
-console.log(`mDNS:   ${MDNS_HOST}`);
+console.log(`LAN IP:      ${LAN_IP ?? 'not found'}`);
+console.log(`mDNS:        ${MDNS_HOST}`);
+console.log(`PUBLIC_HOST: ${PUBLIC_HOST ?? '(not set)'}`);
+console.log(`STATIC_DIR:  ${STATIC_DIR ?? '(not set)'}`);
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+// ─── Static file serving ──────────────────────────────────────────────────────
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js':   'application/javascript; charset=utf-8',
+  '.css':  'text/css; charset=utf-8',
+  '.png':  'image/png',
+  '.svg':  'image/svg+xml',
+  '.ico':  'image/x-icon',
+  '.woff2':'font/woff2',
+  '.woff': 'font/woff',
+  '.json': 'application/json',
+};
+
+function serveStatic(pathname: string, res: import('http').ServerResponse): boolean {
+  if (!STATIC_DIR) return false;
+
+  // Map clean URL paths to HTML files
+  let urlPath = pathname;
+  if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
+  else if (urlPath === '/ctrl') urlPath = '/ctrl.html';
+
+  const filePath = resolve(join(STATIC_DIR, urlPath));
+  // Guard against path traversal
+  if (!filePath.startsWith(STATIC_DIR)) return false;
+
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) return false;
+
+  const mime = MIME[extname(filePath)] ?? 'application/octet-stream';
+  res.writeHead(200, { 'Content-Type': mime });
+  createReadStream(filePath).pipe(res);
+  return true;
+}
+
+// ─── Session relay ────────────────────────────────────────────────────────────
 
 interface Session {
   display?: WebSocket;
@@ -51,25 +104,42 @@ function tryPair(sessionId: string, session: Session) {
 
 function scheduleCleanup(sessionId: string, session: Session) {
   clearTimeout(session.cleanupTimer);
-  // Clean up sessions that sit unpaired for > 5 minutes
   session.cleanupTimer = setTimeout(() => {
     sessions.delete(sessionId);
     console.log(`[cleanup] session=${sessionId}`);
   }, 5 * 60 * 1000);
 }
 
+// ─── HTTP server ──────────────────────────────────────────────────────────────
+
 const httpServer = createServer((req, res) => {
-  if (req.method === 'GET' && req.url === '/api/host') {
+  const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+  const pathname = url.pathname;
+
+  if (req.method === 'GET' && pathname === '/api/host') {
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
     });
-    res.end(JSON.stringify({ ip: LAN_IP, mdns: MDNS_HOST }));
+    res.end(JSON.stringify({ ip: LAN_IP, mdns: MDNS_HOST, publicHost: PUBLIC_HOST }));
     return;
   }
+
+  if (req.method === 'GET' && serveStatic(pathname, res)) {
+    return;
+  }
+
+  if (STATIC_DIR && req.method === 'GET') {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+    return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hydra Phone relay server\n');
 });
+
+// ─── WebSocket server ─────────────────────────────────────────────────────────
 
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -88,7 +158,6 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   const session = getSession(sessionId);
   clearTimeout(session.cleanupTimer);
 
-  // Replace any stale connection for this role
   if (session[role]) {
     session[role]!.close(1001, 'Replaced by new connection');
   }
@@ -97,7 +166,6 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   tryPair(sessionId, session);
 
   ws.on('message', (data) => {
-    // Relay from controller → display and display → controller
     const other = role === 'controller' ? session.display : session.controller;
     if (other && other.readyState === WebSocket.OPEN) {
       other.send(data.toString());
@@ -108,7 +176,6 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     console.log(`[disconnect] role=${role} session=${sessionId}`);
     if (session[role] === ws) {
       session[role] = undefined;
-      // Notify the other side
       const other = role === 'controller' ? session.display : session.controller;
       if (other && other.readyState === WebSocket.OPEN) {
         other.send(JSON.stringify({ type: 'disconnected', role }));
@@ -123,5 +190,5 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`Hydra Phone relay server listening on ws://localhost:${PORT}`);
+  console.log(`Hydra Phone relay server listening on :${PORT}`);
 });

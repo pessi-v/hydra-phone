@@ -8,7 +8,11 @@ import { BlendIndicator } from "./BlendSubChain";
 import type { Chain, FunctionNode } from "../types";
 
 // Navigate path [i0, i1, ...] to get subChain.transforms[subIndex]
-function getNodeAtPath(chain: Chain, path: number[], subIndex: number): FunctionNode | undefined {
+function getNodeAtPath(
+  chain: Chain,
+  path: number[],
+  subIndex: number,
+): FunctionNode | undefined {
   let node: FunctionNode | undefined = chain.transforms[path[0]];
   for (let i = 1; i < path.length; i++) {
     node = node?.subChain?.transforms[path[i]];
@@ -43,10 +47,18 @@ export function SubChainTransformColumn({
     return getNodeAtPath(chain, path, subIndex);
   });
 
-  const replaceSubChainTransform = usePatchStore((s) => s.replaceSubChainTransform);
-  const removeSubChainTransform = usePatchStore((s) => s.removeSubChainTransform);
-  const insertSubChainTransform = usePatchStore((s) => s.insertSubChainTransform);
-  const setSubChainTransformArg = usePatchStore((s) => s.setSubChainTransformArg);
+  const replaceSubChainTransform = usePatchStore(
+    (s) => s.replaceSubChainTransform,
+  );
+  const removeSubChainTransform = usePatchStore(
+    (s) => s.removeSubChainTransform,
+  );
+  const insertSubChainTransform = usePatchStore(
+    (s) => s.insertSubChainTransform,
+  );
+  const setSubChainTransformArg = usePatchStore(
+    (s) => s.setSubChainTransformArg,
+  );
 
   if (!transform) return null;
 
@@ -120,7 +132,9 @@ export function SubChainTransformColumn({
             max={argDef.max}
             step={argDef.step}
             color={color}
-            onChange={(v) => setSubChainTransformArg(chainId, path, subIndex, i, v)}
+            onChange={(v) =>
+              setSubChainTransformArg(chainId, path, subIndex, i, v)
+            }
           />
         ))}
 
@@ -137,7 +151,14 @@ export function SubChainTransformColumn({
         )}
 
         {def?.args.length === 0 && !transform.subChain && (
-          <div style={{ fontSize: 9, color: "#455A64", textAlign: "center", paddingTop: 8 }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#455A64",
+              textAlign: "center",
+              paddingTop: 8,
+            }}
+          >
             no params
           </div>
         )}
@@ -159,20 +180,24 @@ export function SubChainTransformColumn({
         }}
         title="Add transform after"
       >
-        + add
+        • add
       </button>
 
       {replacePicker && (
         <FunctionPicker
           position="transform"
-          onSelect={(name) => replaceSubChainTransform(chainId, path, subIndex, name)}
+          onSelect={(name) =>
+            replaceSubChainTransform(chainId, path, subIndex, name)
+          }
           onClose={() => setReplacePicker(false)}
         />
       )}
       {addPicker && (
         <FunctionPicker
           position="transform"
-          onSelect={(name) => insertSubChainTransform(chainId, path, subIndex + 1, name)}
+          onSelect={(name) =>
+            insertSubChainTransform(chainId, path, subIndex + 1, name)
+          }
           onClose={() => setAddPicker(false)}
         />
       )}

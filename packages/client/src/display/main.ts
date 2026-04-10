@@ -19,9 +19,12 @@ async function getCtrlUrl(): Promise<string> {
 
   try {
     const res = await fetch('/api/host');
-    const { ip, mdns } = await res.json() as { ip: string | null; mdns: string };
-    // Prefer mDNS (.local) — resolves via Bonjour on macOS/iOS and mDNS on Android.
-    // Fall back to raw LAN IP, then whatever hostname we're on.
+    const { ip, mdns, publicHost } = await res.json() as {
+      ip: string | null; mdns: string; publicHost: string | null;
+    };
+    // In production PUBLIC_HOST is set — always use HTTPS with the canonical domain.
+    if (publicHost) return `https://${publicHost}/ctrl?session=${sessionId}`;
+    // Dev: prefer mDNS (.local), fall back to LAN IP, then current hostname.
     const host = mdns ?? ip ?? window.location.hostname;
     return `${proto}//${host}${port ? `:${port}` : ''}/ctrl?session=${sessionId}`;
   } catch {

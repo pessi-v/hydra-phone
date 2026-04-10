@@ -1,5 +1,8 @@
-import { useCallback, useRef } from 'react';
-import { SLIDER_TRACK } from '../lib/constants';
+import { useCallback, useRef } from "react";
+import { SLIDER_TRACK } from "../lib/constants";
+
+const KNOB_R = 7; // visual radius in px — knob diameter = 14px
+const TRACK_H = 3; // track bar height in px
 
 interface Props {
   label: string;
@@ -12,70 +15,169 @@ interface Props {
 }
 
 export function SliderRow({ label, value, min, max, step, color, onChange }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(parseFloat(e.target.value));
+  // Percentage of value within [min, max], clamped to [0, 100]
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+  // Snap a raw number to the nearest step, clamped to [min, max]
+  const snap = useCallback(
+    (raw: number) => {
+      const stepsFromMin = Math.round((raw - min) / step);
+      const snapped = min + stepsFromMin * step;
+      const dec = (step.toString().split(".")[1] ?? "").length;
+      return parseFloat(Math.max(min, Math.min(max, snapped)).toFixed(dec));
     },
-    [onChange]
+    [min, max, step],
   );
 
-  // Double-tap to enter value manually
-  const handleDoubleClick = useCallback(() => {
+  // Convert a pointer's clientX to a snapped value.
+  // The knob centre travels from (rect.left + KNOB_R) to (rect.right - KNOB_R),
+  // matching the inset track bar.
+  const valueAt = useCallback(
+    (clientX: number) => {
+      const rect = trackRef.current?.getBoundingClientRect();
+      if (!rect) return snap(min);
+      const trackWidth = rect.width - 2 * KNOB_R;
+      if (trackWidth <= 0) return snap(min);
+      const pctRaw = (clientX - rect.left - KNOB_R) / trackWidth;
+      return snap(min + Math.max(0, Math.min(1, pctRaw)) * (max - min));
+    },
+    [min, max, snap],
+  );
+
+  const onDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      dragging.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      onChange(valueAt(e.clientX));
+    },
+    [onChange, valueAt],
+  );
+
+  const onMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragging.current) return;
+      onChange(valueAt(e.clientX));
+    },
+    [onChange, valueAt],
+  );
+
+  const onUp = useCallback(() => {
+    dragging.current = false;
+  }, []);
+
+  // Double-click/tap the value to type it in manually
+  const onDblClick = useCallback(() => {
     const raw = prompt(`${label} (${min}–${max})`, String(value));
     if (raw === null) return;
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed)) onChange(Math.min(max, Math.max(min, parsed)));
-  }, [label, min, max, value, onChange]);
+    const n = parseFloat(raw);
+    if (!isNaN(n)) onChange(snap(n));
+  }, [label, min, max, value, onChange, snap]);
 
-  // Percentage for the filled track
-  const pct = ((value - min) / (max - min)) * 100;
-  const clampedPct = Math.max(0, Math.min(100, pct));
-
-  const displayValue = Math.abs(value) < 0.01 && value !== 0
-    ? value.toExponential(1)
-    : Number.isInteger(value)
-    ? String(value)
-    : parseFloat(value.toFixed(3)).toString();
+  const display =
+    Math.abs(value) < 0.01 && value !== 0
+      ? value.toExponential(1)
+      : Number.isInteger(value)
+        ? String(value)
+        : parseFloat(value.toFixed(3)).toString();
 
   return (
-    <div style={{ padding: '4px 6px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-        <span style={{ fontSize: 9, color: '#B0BEC5', textTransform: 'uppercase', letterSpacing: '0.05em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '60%' }}>
+    <div style={{ padding: "3px 6px" }}>
+      {/* Label + value */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 3,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 9,
+            color: "#B0BEC5",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
+            maxWidth: "60%",
+          }}
+        >
           {label}
         </span>
-        <span style={{ fontSize: 10, color: '#fff', fontFamily: 'monospace', minWidth: 32, textAlign: 'right' }}>
-          {displayValue}
+        <span
+          onDoubleClick={onDblClick}
+          style={{
+            fontSize: 10,
+            color: "#fff",
+            fontFamily: "monospace",
+            userSelect: "none",
+            cursor: "text",
+          }}
+        >
+          {display}
         </span>
       </div>
-      <div style={{ position: 'relative', height: 18 }} onDoubleClick={handleDoubleClick}>
-        {/* Custom track background */}
-        <div style={{
-          position: 'absolute', top: '50%', left: 0, right: 0,
-          height: 4, transform: 'translateY(-50%)',
-          borderRadius: 2, overflow: 'hidden',
-          background: SLIDER_TRACK,
-        }}>
-          <div style={{
-            width: `${clampedPct}%`, height: '100%',
-            background: color, borderRadius: 2,
-          }} />
-        </div>
-        <input
-          ref={inputRef}
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={handleChange}
+
+      {/* Track + knob — pointer events handled on the container */}
+      <div
+        ref={trackRef}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        style={{
+          position: "relative",
+          height: KNOB_R * 2 + 6, // extra height = easier finger tap area
+          touchAction: "none",
+          userSelect: "none",
+          cursor: "pointer",
+        }}
+      >
+        {/* Track bar — inset by KNOB_R on each side so the filled portion
+            always ends exactly at the knob centre */}
+        <div
           style={{
-            position: 'absolute', inset: 0,
-            width: '100%', height: '100%',
-            opacity: 0, cursor: 'pointer',
-            touchAction: 'none',
-            margin: 0,
+            position: "absolute",
+            top: "50%",
+            left: KNOB_R,
+            right: KNOB_R,
+            height: TRACK_H,
+            transform: "translateY(-50%)",
+            background: SLIDER_TRACK,
+            borderRadius: TRACK_H / 2,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${pct}%`,
+              height: "100%",
+              background: color,
+              borderRadius: "inherit",
+            }}
+          />
+        </div>
+
+        {/* Knob — positioned so its left edge travels from 0 to (100% − 2·KNOB_R),
+            keeping it fully within the container at both extremes */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: `calc((100% - ${KNOB_R * 2}px) * ${pct / 100})`,
+            transform: "translateY(-50%)",
+            width: KNOB_R * 2,
+            height: KNOB_R * 2,
+            borderRadius: "50%",
+            background: "#1A1A2E",
+            border: `2px solid ${color}`,
+            boxShadow: `0 0 0 1px ${color}44, 0 1px 4px rgba(0,0,0,0.5)`,
+            pointerEvents: "none",
           }}
         />
       </div>

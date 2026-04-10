@@ -34,7 +34,9 @@ export function SubChainSourceColumn({ chainId, path, blendColor }: Props) {
 
   const setSubChainSource = usePatchStore((s) => s.setSubChainSource);
   const setSubChainSourceArg = usePatchStore((s) => s.setSubChainSourceArg);
-  const insertSubChainTransform = usePatchStore((s) => s.insertSubChainTransform);
+  const insertSubChainTransform = usePatchStore(
+    (s) => s.insertSubChainTransform,
+  );
 
   if (!source) return null;
 
@@ -111,7 +113,7 @@ export function SubChainSourceColumn({ chainId, path, blendColor }: Props) {
         }}
         title="Add transform"
       >
-        + add
+        • add
       </button>
 
       {replacePicker && (
