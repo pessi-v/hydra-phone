@@ -12,8 +12,7 @@ export interface FunctionNode {
 export interface Chain {
   id: string;
   source: FunctionNode;
-  /** Up to 6 transform slots; undefined = empty slot */
-  transforms: (FunctionNode | undefined)[];
+  transforms: FunctionNode[];
   output: 'o0' | 'o1' | 'o2' | 'o3';
 }
 

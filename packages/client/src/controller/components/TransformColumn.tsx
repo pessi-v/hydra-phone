@@ -1,84 +1,78 @@
-import { useState } from 'react';
-import { usePatchStore } from '../state/patchStore';
-import { getFunctionDef } from '../lib/functionRegistry';
-import { CATEGORY_COLORS } from '../lib/constants';
-import { SliderRow } from './SliderRow';
-import { FunctionPicker } from './FunctionPicker';
+import { useState } from "react";
+import { usePatchStore } from "../state/patchStore";
+import { getFunctionDef } from "../lib/functionRegistry";
+import { CATEGORY_COLORS } from "../lib/constants";
+import { SliderRow } from "./SliderRow";
+import { FunctionPicker } from "./FunctionPicker";
 
 interface Props {
   chainId: string;
-  slot: number;
+  index: number;
 }
 
-export function TransformColumn({ chainId, slot }: Props) {
-  const [pickerOpen, setPickerOpen] = useState(false);
+export function TransformColumn({ chainId, index }: Props) {
+  const [replacePicker, setReplacePicker] = useState(false);
+  const [addPicker, setAddPicker] = useState(false);
 
   const transform = usePatchStore(
-    s => s.patch.chains.find(c => c.id === chainId)?.transforms[slot]
+    (s) => s.patch.chains.find((c) => c.id === chainId)?.transforms[index],
   );
-  const setTransform = usePatchStore(s => s.setTransform);
-  const clearTransform = usePatchStore(s => s.clearTransform);
-  const setTransformArg = usePatchStore(s => s.setTransformArg);
+  const replaceTransform = usePatchStore((s) => s.replaceTransform);
+  const removeTransform = usePatchStore((s) => s.removeTransform);
+  const insertTransform = usePatchStore((s) => s.insertTransform);
+  const setTransformArg = usePatchStore((s) => s.setTransformArg);
 
-  if (!transform) {
-    // Empty slot — show [+] button
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', height: '100%',
-        borderRight: '1px solid #37474F', minWidth: 0,
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <button
-          onClick={() => setPickerOpen(true)}
-          style={{
-            width: 32, height: 32, borderRadius: 8,
-            border: '1px dashed #455A64',
-            background: 'transparent', color: '#455A64',
-            fontSize: 18, cursor: 'pointer', lineHeight: 1,
-          }}
-        >
-          +
-        </button>
-        {pickerOpen && (
-          <FunctionPicker
-            position="transform"
-            onSelect={name => setTransform(chainId, slot, name)}
-            onClose={() => setPickerOpen(false)}
-          />
-        )}
-      </div>
-    );
-  }
+  if (!transform) return null;
 
   const def = getFunctionDef(transform.name);
   const color = CATEGORY_COLORS[transform.type];
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      background: color + '18', borderRight: `1px solid ${color}44`,
-      minWidth: 0, overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', flexShrink: 0 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: color + "18",
+        borderRight: `1px solid ${color}44`,
+        minWidth: 0,
+        overflow: "hidden",
+      }}
+    >
+      {/* Header — tap to replace, × to remove */}
+      <div style={{ display: "flex", flexShrink: 0 }}>
         <button
-          onClick={() => setPickerOpen(true)}
+          onClick={() => setReplacePicker(true)}
           style={{
-            flex: 1, background: color, border: 'none', cursor: 'pointer',
-            padding: '6px 4px', textAlign: 'center',
-            color: '#fff', fontSize: 10, fontFamily: 'monospace',
-            fontWeight: 700, letterSpacing: '0.05em',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            flex: 1,
+            background: color,
+            border: "none",
+            cursor: "pointer",
+            padding: "6px 4px",
+            textAlign: "center",
+            color: "#fff",
+            fontSize: 10,
+            fontFamily: "monospace",
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
           title="Change function"
         >
           {transform.name}
         </button>
         <button
-          onClick={() => clearTransform(chainId, slot)}
+          onClick={() => removeTransform(chainId, index)}
           style={{
-            background: color + 'aa', border: 'none', cursor: 'pointer',
-            color: '#fff', fontSize: 12, padding: '0 5px', flexShrink: 0,
+            background: color + "aa",
+            border: "none",
+            cursor: "pointer",
+            color: "#fff",
+            fontSize: 12,
+            padding: "0 5px",
+            flexShrink: 0,
           }}
           title="Remove"
         >
@@ -87,7 +81,7 @@ export function TransformColumn({ chainId, slot }: Props) {
       </div>
 
       {/* Args */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingTop: 4 }}>
+      <div style={{ flex: 1, overflowY: "auto", paddingTop: 4 }}>
         {def?.args.map((argDef, i) => (
           <SliderRow
             key={argDef.name}
@@ -97,21 +91,54 @@ export function TransformColumn({ chainId, slot }: Props) {
             max={argDef.max}
             step={argDef.step}
             color={color}
-            onChange={v => setTransformArg(chainId, slot, i, v)}
+            onChange={(v) => setTransformArg(chainId, index, i, v)}
           />
         ))}
         {def?.args.length === 0 && (
-          <div style={{ fontSize: 9, color: '#455A64', textAlign: 'center', paddingTop: 8 }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#455A64",
+              textAlign: "center",
+              paddingTop: 8,
+            }}
+          >
             no params
           </div>
         )}
       </div>
 
-      {pickerOpen && (
+      {/* Add transform after this one */}
+      <button
+        onClick={() => setAddPicker(true)}
+        style={{
+          background: "transparent",
+          border: `1px dashed ${color}66`,
+          borderRadius: 4,
+          margin: "4px 6px 6px",
+          color: color,
+          fontSize: 11,
+          cursor: "pointer",
+          padding: "4px 0",
+          flexShrink: 0,
+        }}
+        title="Add function after"
+      >
+        • add
+      </button>
+
+      {replacePicker && (
         <FunctionPicker
           position="transform"
-          onSelect={name => setTransform(chainId, slot, name)}
-          onClose={() => setPickerOpen(false)}
+          onSelect={(name) => replaceTransform(chainId, index, name)}
+          onClose={() => setReplacePicker(false)}
+        />
+      )}
+      {addPicker && (
+        <FunctionPicker
+          position="transform"
+          onSelect={(name) => insertTransform(chainId, index + 1, name)}
+          onClose={() => setAddPicker(false)}
         />
       )}
     </div>

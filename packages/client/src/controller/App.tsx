@@ -5,10 +5,12 @@ import { SourceColumn } from './components/SourceColumn';
 import { TransformColumn } from './components/TransformColumn';
 import { ControlsColumn } from './components/ControlsColumn';
 import { CodeView } from './components/CodeView';
-import { TRANSFORM_SLOTS, PAGE_BG } from './lib/constants';
+import { PAGE_BG } from './lib/constants';
 
-// Landscape rotation prompt
-function PortraitGuard({ children }: { children: React.ReactNode }) {
+// In portrait mode, rotate the UI 90° so the layout always appears landscape.
+// The rotated container is sized to the landscape dimensions (100vh × 100vw)
+// and offset so it stays centered in the portrait viewport.
+function LandscapeAdapter({ children }: { children: React.ReactNode }) {
   const [isPortrait, setIsPortrait] = useState(
     () => window.innerHeight > window.innerWidth
   );
@@ -17,7 +19,6 @@ function PortraitGuard({ children }: { children: React.ReactNode }) {
     const check = () => setIsPortrait(window.innerHeight > window.innerWidth);
     window.addEventListener('resize', check);
     window.addEventListener('orientationchange', check);
-    // Attempt to lock orientation (works in some browsers/PWA contexts)
     (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch(() => {});
     return () => {
       window.removeEventListener('resize', check);
@@ -25,21 +26,27 @@ function PortraitGuard({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  if (isPortrait) {
-    return (
-      <div style={{
-        position: 'fixed', inset: 0, background: PAGE_BG,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        color: '#fff', gap: 16, fontFamily: 'monospace',
-      }}>
-        <div style={{ fontSize: 48 }}>↻</div>
-        <div style={{ fontSize: 14, color: '#B0BEC5' }}>Rotate to landscape</div>
-      </div>
-    );
+  if (!isPortrait) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Portrait: rotate the container 90° clockwise.
+  // Container dimensions are swapped (width=100vh, height=100vw) so after
+  // rotation the content fills the portrait viewport as if it were landscape.
+  return (
+    <div style={{
+      position: 'fixed',
+      width: '100vh',
+      height: '100vw',
+      top: 'calc(50vh - 50vw)',
+      left: 'calc(50vw - 50vh)',
+      transform: 'rotate(90deg)',
+      transformOrigin: 'center center',
+      overflow: 'hidden',
+    }}>
+      {children}
+    </div>
+  );
 }
 
 // Pairing overlay shown while waiting for the display to connect
@@ -74,13 +81,13 @@ function PairingOverlay({ sessionId }: { sessionId: string }) {
 export function App() {
   const [codeVisible, setCodeVisible] = useState(false);
 
-  const chains = usePatchStore(s => s.patch.chains);
-  const chain = chains[0]; // MVP: single chain
-
+  const chain = usePatchStore(s => s.patch.chains[0]);
   const { status, sessionId } = useWsStore();
 
+  const numCols = 1 + chain.transforms.length; // source + transforms
+
   return (
-    <PortraitGuard>
+    <LandscapeAdapter>
       {status !== 'paired' && sessionId && (
         <PairingOverlay sessionId={sessionId} />
       )}
@@ -97,14 +104,15 @@ export function App() {
       {/* Main editor — always rendered so state is preserved */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${TRANSFORM_SLOTS + 1}, 1fr) auto`,
-        height: '100dvh',
+        gridTemplateColumns: `repeat(${numCols}, 1fr) auto`,
+        width: '100%',
+        height: '100%',
         background: PAGE_BG,
         overflow: 'hidden',
       }}>
         <SourceColumn chainId={chain.id} />
-        {Array.from({ length: TRANSFORM_SLOTS }, (_, i) => (
-          <TransformColumn key={i} chainId={chain.id} slot={i} />
+        {chain.transforms.map((_, i) => (
+          <TransformColumn key={i} chainId={chain.id} index={i} />
         ))}
         <ControlsColumn
           chainId={chain.id}
@@ -114,6 +122,6 @@ export function App() {
       </div>
 
       {codeVisible && <CodeView onClose={() => setCodeVisible(false)} />}
-    </PortraitGuard>
+    </LandscapeAdapter>
   );
 }

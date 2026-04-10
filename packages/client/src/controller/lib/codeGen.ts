@@ -12,10 +12,7 @@ function nodeToString(node: FunctionNode): string {
 
 function chainToString(chain: Chain): string {
   const source = nodeToString(chain.source);
-  const transforms = chain.transforms
-    .filter((t): t is FunctionNode => t !== undefined)
-    .map(t => `.${nodeToString(t)}`)
-    .join('');
+  const transforms = chain.transforms.map(t => `.${nodeToString(t)}`).join('');
   return `${source}${transforms}.out(${chain.output})`;
 }
 
