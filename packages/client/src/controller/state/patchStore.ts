@@ -12,6 +12,7 @@ function makeNode(fnName: string): FunctionNode {
     args: def.args.map((a): ArgumentValue => ({ mode: 'static', value: a.default })),
   };
   if (def.type === 'combine' || def.type === 'combineCoord') {
+    node.blendId = nanoid(6);
     node.subChain = { source: makeNode('osc'), transforms: [] };
   }
   return node;

@@ -4,26 +4,26 @@ import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
 import { FunctionPicker } from "./FunctionPicker";
-import { BlendIndicator } from "./BlendSubChain";
 
 interface Props {
   chainId: string;
-  index: number;
-  subChainExpanded?: boolean;
-  onToggleSubChain?: () => void;
+  tIdx: number;      // index of the blend transform in the main chain
+  subIndex: number;  // index within the sub-chain's transforms array
+  blendColor: string;
 }
 
-export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubChain }: Props) {
+export function SubChainTransformColumn({ chainId, tIdx, subIndex, blendColor }: Props) {
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
   const transform = usePatchStore(
-    (s) => s.patch.chains.find((c) => c.id === chainId)?.transforms[index],
+    (s) =>
+      s.patch.chains.find((c) => c.id === chainId)?.transforms[tIdx]?.subChain?.transforms[subIndex],
   );
-  const replaceTransform = usePatchStore((s) => s.replaceTransform);
-  const removeTransform = usePatchStore((s) => s.removeTransform);
-  const insertTransform = usePatchStore((s) => s.insertTransform);
-  const setTransformArg = usePatchStore((s) => s.setTransformArg);
+  const replaceSubChainTransform = usePatchStore((s) => s.replaceSubChainTransform);
+  const removeSubChainTransform = usePatchStore((s) => s.removeSubChainTransform);
+  const insertSubChainTransform = usePatchStore((s) => s.insertSubChainTransform);
+  const setSubChainTransformArg = usePatchStore((s) => s.setSubChainTransformArg);
 
   if (!transform) return null;
 
@@ -37,6 +37,7 @@ export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubC
         flexDirection: "column",
         height: "100%",
         background: color + "18",
+        borderLeft: `2px solid ${blendColor}88`,
         borderRight: `1px solid ${color}44`,
         minWidth: 0,
         overflow: "hidden",
@@ -50,6 +51,7 @@ export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubC
             flex: 1,
             background: color,
             border: "none",
+            borderBottom: `2px solid ${blendColor}`,
             cursor: "pointer",
             padding: "6px 4px",
             textAlign: "center",
@@ -67,10 +69,11 @@ export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubC
           {transform.name}
         </button>
         <button
-          onClick={() => removeTransform(chainId, index)}
+          onClick={() => removeSubChainTransform(chainId, tIdx, subIndex)}
           style={{
             background: color + "aa",
             border: "none",
+            borderBottom: `2px solid ${blendColor}`,
             cursor: "pointer",
             color: "#fff",
             fontSize: 12,
@@ -94,51 +97,52 @@ export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubC
             max={argDef.max}
             step={argDef.step}
             color={color}
-            onChange={(v) => setTransformArg(chainId, index, i, v)}
+            onChange={(v) => setSubChainTransformArg(chainId, tIdx, subIndex, i, v)}
           />
         ))}
 
-        {/* Expand/collapse indicator for blend/modulate sub-chains */}
-        {transform.subChain && onToggleSubChain && (
-          <div style={{ padding: "0 6px" }}>
-            <BlendIndicator
-              subChain={transform.subChain}
-              expanded={!!subChainExpanded}
-              blendColor={color}
-              onToggle={onToggleSubChain}
-            />
+        {/* Nested blend: show static indicator, no recursive expansion */}
+        {transform.subChain && (
+          <div
+            style={{
+              padding: "4px 6px",
+              fontSize: 9,
+              color: "#607D8B",
+              fontFamily: "monospace",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ▶{" "}
+            {[transform.subChain.source.name, ...transform.subChain.transforms.map((t) => t.name)].join(
+              "·",
+            )}
           </div>
         )}
 
         {def?.args.length === 0 && !transform.subChain && (
-          <div
-            style={{
-              fontSize: 9,
-              color: "#455A64",
-              textAlign: "center",
-              paddingTop: 8,
-            }}
-          >
+          <div style={{ fontSize: 9, color: "#455A64", textAlign: "center", paddingTop: 8 }}>
             no params
           </div>
         )}
       </div>
 
-      {/* Add main-chain transform after this one */}
+      {/* Add sub-chain transform after this one */}
       <button
         onClick={() => setAddPicker(true)}
         style={{
           background: "transparent",
-          border: `1px dashed ${color}66`,
+          border: `1px dashed ${blendColor}66`,
           borderRadius: 4,
           margin: "4px 6px 6px",
-          color: color,
+          color: blendColor,
           fontSize: 11,
           cursor: "pointer",
           padding: "4px 0",
           flexShrink: 0,
         }}
-        title="Add function after"
+        title="Add transform after"
       >
         + add
       </button>
@@ -146,14 +150,14 @@ export function TransformColumn({ chainId, index, subChainExpanded, onToggleSubC
       {replacePicker && (
         <FunctionPicker
           position="transform"
-          onSelect={(name) => replaceTransform(chainId, index, name)}
+          onSelect={(name) => replaceSubChainTransform(chainId, tIdx, subIndex, name)}
           onClose={() => setReplacePicker(false)}
         />
       )}
       {addPicker && (
         <FunctionPicker
           position="transform"
-          onSelect={(name) => insertTransform(chainId, index + 1, name)}
+          onSelect={(name) => insertSubChainTransform(chainId, tIdx, subIndex + 1, name)}
           onClose={() => setAddPicker(false)}
         />
       )}

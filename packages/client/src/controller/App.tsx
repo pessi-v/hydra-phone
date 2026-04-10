@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePatchStore } from './state/patchStore';
 import { useWsStore } from './state/wsStore';
 import { SourceColumn } from './components/SourceColumn';
 import { TransformColumn } from './components/TransformColumn';
+import { SubChainSourceColumn } from './components/SubChainSourceColumn';
+import { SubChainTransformColumn } from './components/SubChainTransformColumn';
 import { ControlsColumn } from './components/ControlsColumn';
 import { CodeView } from './components/CodeView';
-import { PAGE_BG } from './lib/constants';
+import { CATEGORY_COLORS, PAGE_BG } from './lib/constants';
 
 const MAX_VISIBLE_COLS = 7;
 
@@ -32,9 +34,6 @@ function LandscapeAdapter({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Portrait: rotate the container 90° clockwise.
-  // Container dimensions are swapped (width=100vh, height=100vw) so after
-  // rotation the content fills the portrait viewport as if it were landscape.
   return (
     <div style={{
       position: 'fixed',
@@ -51,7 +50,6 @@ function LandscapeAdapter({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Pairing overlay shown while waiting for the display to connect
 function PairingOverlay({ sessionId }: { sessionId: string }) {
   return (
     <div style={{
@@ -86,12 +84,67 @@ export function App() {
   const [thumbLeft, setThumbLeft] = useState(0);
   const [thumbWidth, setThumbWidth] = useState(100);
 
+  // Tracks which blend/modulate nodes have their sub-chain expanded.
+  // Key is the node's stable blendId.
+  const [expandedBlends, setExpandedBlends] = useState<Set<string>>(new Set());
+
   const chain = usePatchStore(s => s.patch.chains[0]);
   const { status, sessionId } = useWsStore();
 
-  const numCols = 1 + chain.transforms.length;
-  const needsScroll = numCols > MAX_VISIBLE_COLS;
+  const toggleBlend = useCallback((blendId: string) => {
+    setExpandedBlends(prev => {
+      const next = new Set(prev);
+      if (next.has(blendId)) next.delete(blendId);
+      else next.add(blendId);
+      return next;
+    });
+  }, []);
 
+  // ── Build column descriptor list ────────────────────────────────────────
+  // Each entry carries the key and the JSX element to render.
+  type ColEntry = { key: string; el: React.ReactNode };
+  const cols: ColEntry[] = [];
+
+  cols.push({ key: 'src', el: <SourceColumn chainId={chain.id} /> });
+
+  for (let i = 0; i < chain.transforms.length; i++) {
+    const t = chain.transforms[i];
+    const isBlend = t.type === 'combine' || t.type === 'combineCoord';
+    const { blendId } = t;
+    const expanded = isBlend && !!blendId && expandedBlends.has(blendId);
+    const blendColor = CATEGORY_COLORS[t.type];
+
+    cols.push({
+      key: `t-${i}`,
+      el: (
+        <TransformColumn
+          chainId={chain.id}
+          index={i}
+          subChainExpanded={expanded}
+          onToggleSubChain={isBlend && blendId ? () => toggleBlend(blendId) : undefined}
+        />
+      ),
+    });
+
+    if (expanded && t.subChain) {
+      cols.push({
+        key: `${blendId}-src`,
+        el: <SubChainSourceColumn chainId={chain.id} tIdx={i} blendColor={blendColor} />,
+      });
+      t.subChain.transforms.forEach((_, si) => {
+        cols.push({
+          key: `${blendId}-t${si}`,
+          el: <SubChainTransformColumn chainId={chain.id} tIdx={i} subIndex={si} blendColor={blendColor} />,
+        });
+      });
+    }
+  }
+
+  const numCols = cols.length;
+  const needsScroll = numCols > MAX_VISIBLE_COLS;
+  const colFlex = needsScroll ? `0 0 calc(100% / ${MAX_VISIBLE_COLS})` : '1 1 0';
+
+  // ── Scrollbar thumb ─────────────────────────────────────────────────────
   const updateThumb = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -108,10 +161,6 @@ export function App() {
     updateThumb();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numCols]);
-
-  const colFlex = needsScroll
-    ? `0 0 calc(100% / ${MAX_VISIBLE_COLS})`
-    : '1 1 0';
 
   return (
     <LandscapeAdapter>
@@ -153,12 +202,9 @@ export function App() {
               scrollbarWidth: 'none',
             }}
           >
-            <div style={{ flex: colFlex, height: '100%', overflow: 'hidden', minWidth: 0 }}>
-              <SourceColumn chainId={chain.id} />
-            </div>
-            {chain.transforms.map((_, i) => (
-              <div key={i} style={{ flex: colFlex, height: '100%', overflow: 'hidden', minWidth: 0 }}>
-                <TransformColumn chainId={chain.id} index={i} />
+            {cols.map(({ key, el }) => (
+              <div key={key} style={{ flex: colFlex, height: '100%', overflow: 'hidden', minWidth: 0 }}>
+                {el}
               </div>
             ))}
           </div>

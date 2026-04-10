@@ -152,10 +152,10 @@ const REGISTRY: FunctionDef[] = [
     name: "color",
     type: "color",
     args: [
-      { name: "r", default: 5, min: 0, max: 255, step: 1 },
-      { name: "g", default: 25, min: 0, max: 255, step: 1 },
-      { name: "b", default: 40, min: 0, max: 255, step: 1 },
-      { name: "a", default: 1, min: 0, max: 1, step: 0.05 },
+      { name: "r", default: 1, min: 0, max: 1, step: 0.01 },
+      { name: "g", default: 0, min: 0, max: 1, step: 0.01 },
+      { name: "b", default: 0.8, min: 0, max: 1, step: 0.01 },
+      { name: "a", default: 1, min: 0, max: 1, step: 0.01 },
     ],
   },
   {

@@ -15,6 +15,8 @@ export interface FunctionNode {
   args: ArgumentValue[];
   /** Present iff type is 'combine' | 'combineCoord' — the texture input */
   subChain?: SubChain;
+  /** Stable ID for blend/modulate nodes — used to track UI expand state across reorders */
+  blendId?: string;
 }
 
 export interface Chain {
