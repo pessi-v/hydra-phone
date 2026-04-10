@@ -3,10 +3,18 @@ export type FunctionType = 'src' | 'coord' | 'color' | 'combine' | 'combineCoord
 // MVP: static values only
 export type ArgumentValue = { mode: 'static'; value: number };
 
+// Nested source chain used as the first argument of combine / combineCoord functions
+export interface SubChain {
+  source: FunctionNode;
+  transforms: FunctionNode[];
+}
+
 export interface FunctionNode {
   name: string;
   type: FunctionType;
   args: ArgumentValue[];
+  /** Present iff type is 'combine' | 'combineCoord' — the texture input */
+  subChain?: SubChain;
 }
 
 export interface Chain {

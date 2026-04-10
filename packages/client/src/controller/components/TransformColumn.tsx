@@ -4,6 +4,7 @@ import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
 import { FunctionPicker } from "./FunctionPicker";
+import { BlendSubChain } from "./BlendSubChain";
 
 interface Props {
   chainId: string;
@@ -21,6 +22,13 @@ export function TransformColumn({ chainId, index }: Props) {
   const removeTransform = usePatchStore((s) => s.removeTransform);
   const insertTransform = usePatchStore((s) => s.insertTransform);
   const setTransformArg = usePatchStore((s) => s.setTransformArg);
+
+  const setSubChainSource = usePatchStore((s) => s.setSubChainSource);
+  const setSubChainSourceArg = usePatchStore((s) => s.setSubChainSourceArg);
+  const insertSubChainTransform = usePatchStore((s) => s.insertSubChainTransform);
+  const replaceSubChainTransform = usePatchStore((s) => s.replaceSubChainTransform);
+  const removeSubChainTransform = usePatchStore((s) => s.removeSubChainTransform);
+  const setSubChainTransformArg = usePatchStore((s) => s.setSubChainTransformArg);
 
   if (!transform) return null;
 
@@ -80,8 +88,9 @@ export function TransformColumn({ chainId, index }: Props) {
         </button>
       </div>
 
-      {/* Args */}
+      {/* Args + sub-chain (scrollable) */}
       <div style={{ flex: 1, overflowY: "auto", paddingTop: 4 }}>
+        {/* Numeric args */}
         {def?.args.map((argDef, i) => (
           <SliderRow
             key={argDef.name}
@@ -94,7 +103,24 @@ export function TransformColumn({ chainId, index }: Props) {
             onChange={(v) => setTransformArg(chainId, index, i, v)}
           />
         ))}
-        {def?.args.length === 0 && (
+
+        {/* Sub-chain for combine / combineCoord */}
+        {transform.subChain && (
+          <div style={{ padding: "0 6px 6px" }}>
+            <BlendSubChain
+              subChain={transform.subChain}
+              blendColor={color}
+              onSetSource={(name) => setSubChainSource(chainId, index, name)}
+              onSetSourceArg={(ai, v) => setSubChainSourceArg(chainId, index, ai, v)}
+              onInsertTransform={(i, name) => insertSubChainTransform(chainId, index, i, name)}
+              onReplaceTransform={(i, name) => replaceSubChainTransform(chainId, index, i, name)}
+              onRemoveTransform={(i) => removeSubChainTransform(chainId, index, i)}
+              onSetTransformArg={(ni, ai, v) => setSubChainTransformArg(chainId, index, ni, ai, v)}
+            />
+          </div>
+        )}
+
+        {def?.args.length === 0 && !transform.subChain && (
           <div
             style={{
               fontSize: 9,
