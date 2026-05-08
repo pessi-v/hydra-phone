@@ -7,7 +7,7 @@ This is a graphical, block-based smartphone UI for [Hydra live coding video synt
 
 ## Usage
 
-Got to the [demo page](https://hydra-phone.pessi.info/) and scan the QR code with a smartphone. Your smartphone will load the UI, and the hydra code output will show on your first device's screen.
+Go to the [demo page](https://hydra-phone.pessi.info/) and scan the QR code with a smartphone. Your smartphone will load the UI, and the hydra code output will show on your first device's screen.
 
 ## What works
 
@@ -32,7 +32,7 @@ Got to the [demo page](https://hydra-phone.pessi.info/) and scan the QR code wit
 - import hydra code and get a matching visual UI representation
 - store and retrieve sessions
 - session autosave
-- use smartphone devices as input (micropohone, camera, gyroscope, accelerometer)
+- use smartphone devices as input (microphone, camera, gyroscope, accelerometer)
 - multiplayer mode
 
 ## Hydra resources
