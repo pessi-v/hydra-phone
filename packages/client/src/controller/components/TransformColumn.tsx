@@ -2,7 +2,7 @@ import { useState } from "react";
 import { usePatchStore } from "../state/patchStore";
 import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
-import { SliderRow } from "./SliderRow";
+import { ArgRow } from "./ArgRow";
 import { FunctionPicker } from "./FunctionPicker";
 import { BlendIndicator } from "./BlendSubChain";
 
@@ -91,15 +91,13 @@ export function TransformColumn({
       {/* Args */}
       <div style={{ flex: 1, overflowY: "auto", paddingTop: 4 }}>
         {def?.args.map((argDef, i) => (
-          <SliderRow
+          <ArgRow
             key={argDef.name}
             label={argDef.name}
-            value={transform.args[i]?.value ?? argDef.default}
-            min={argDef.min}
-            max={argDef.max}
-            step={argDef.step}
+            arg={transform.args[i] ?? { mode: "static", value: argDef.default }}
+            argDef={argDef}
             color={color}
-            onChange={(v) => setTransformArg(chainId, index, i, v)}
+            onChange={(arg) => setTransformArg(chainId, index, i, arg)}
           />
         ))}
 
