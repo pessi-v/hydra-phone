@@ -1,4 +1,4 @@
-import { patch } from '../state/patchStore';
+import { patch, activeOutput } from '../state/patchStore';
 import { generateCode } from '../lib/codeGen';
 
 interface Props {
@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function CodeView({ onClose }: Props) {
-  const code = generateCode(patch.value);
+  const code = generateCode(patch.value, activeOutput.value);
 
   return (
     <>

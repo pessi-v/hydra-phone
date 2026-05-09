@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { patch } from './state/patchStore';
+import { patch, activeOutput } from './state/patchStore';
 import { wsStatus, sessionId } from './state/wsStore';
 import { SourceColumn } from './components/SourceColumn';
 import { TransformColumn } from './components/TransformColumn';
@@ -178,7 +178,7 @@ export function App() {
   // blendId of every blend/modulate node whose sub-chain is currently expanded
   const [expandedBlends, setExpandedBlends] = useState<Set<string>>(new Set());
 
-  const chain = patch.value.chains[0];
+  const chain = patch.value.chains.find(c => c.output === activeOutput.value)!;
   const status = wsStatus.value;
   const sid = sessionId.value;
 
@@ -274,7 +274,6 @@ export function App() {
         </div>
 
         <ControlsColumn
-          chainId={chain.id}
           codeVisible={codeVisible}
           onToggleCode={() => setCodeVisible(v => !v)}
         />

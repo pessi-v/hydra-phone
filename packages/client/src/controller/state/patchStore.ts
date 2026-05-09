@@ -18,12 +18,12 @@ function makeNode(fnName: string): FunctionNode {
   return node;
 }
 
-function makeChain(sourceName = 'osc'): Chain {
+function makeChain(sourceName = 'osc', output: Chain['output'] = 'o0'): Chain {
   return {
     id: nanoid(6),
     source: makeNode(sourceName),
     transforms: [],
-    output: 'o0',
+    output,
   };
 }
 
@@ -65,9 +65,20 @@ function applyToNode(
 // ── State ─────────────────────────────────────────────────────────────────────
 
 export const patch = signal<Patch>({
-  chains: [makeChain('osc')],
+  chains: [
+    makeChain('osc', 'o0'),
+    makeChain('osc', 'o1'),
+    makeChain('osc', 'o2'),
+    makeChain('osc', 'o3'),
+  ],
   globalSettings: { bpm: 30, speed: 1, renderMode: 'single' },
 });
+
+export const activeOutput = signal<Chain['output']>('o0');
+
+export function setActiveOutput(output: Chain['output']) {
+  activeOutput.value = output;
+}
 
 function updateChain(chainId: string, updater: (c: Chain) => Chain) {
   patch.value = {
@@ -187,10 +198,6 @@ export function setSubChainTransformArg(chainId: string, path: number[], nodeIdx
 }
 
 // ── Chain-level ───────────────────────────────────────────────────────────────
-
-export function setOutput(chainId: string, output: Chain['output']) {
-  updateChain(chainId, c => ({ ...c, output }));
-}
 
 export function setRenderMode(mode: Patch['globalSettings']['renderMode']) {
   patch.value = {

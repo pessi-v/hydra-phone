@@ -1,17 +1,16 @@
-import { patch, setOutput } from '../state/patchStore';
+import { patch, activeOutput, setActiveOutput } from '../state/patchStore';
 import { wsStatus, lastError } from '../state/wsStore';
 import { generateCode } from '../lib/codeGen';
 import { CONTROLS_BG, OUTPUT_BUFFERS } from '../lib/constants';
 import type { Chain } from '../types';
 
 interface Props {
-  chainId: string;
   codeVisible: boolean;
   onToggleCode: () => void;
 }
 
-export function ControlsColumn({ chainId, codeVisible, onToggleCode }: Props) {
-  const output = patch.value.chains.find(c => c.id === chainId)?.output;
+export function ControlsColumn({ codeVisible, onToggleCode }: Props) {
+  const output = activeOutput.value;
   const status = wsStatus.value;
   const error = lastError.value;
 
@@ -48,7 +47,7 @@ export function ControlsColumn({ chainId, codeVisible, onToggleCode }: Props) {
           {OUTPUT_BUFFERS.map(buf => (
             <button
               key={buf}
-              onClick={() => setOutput(chainId, buf as Chain['output'])}
+              onClick={() => setActiveOutput(buf as Chain['output'])}
               style={{
                 padding: '4px 2px', fontSize: 10,
                 fontFamily: 'monospace', cursor: 'pointer',
@@ -94,7 +93,7 @@ export function ControlsColumn({ chainId, codeVisible, onToggleCode }: Props) {
 
       {/* Generated code preview (hidden, shown via overlay) */}
       <div style={{ fontSize: 7, color: '#455A64', textAlign: 'center' }}>
-        {generateCode(patch.value).split('\n').length} line{generateCode(patch.value).split('\n').length !== 1 ? 's' : ''}
+        {generateCode(patch.value, output).split('\n').length} line{generateCode(patch.value, output).split('\n').length !== 1 ? 's' : ''}
       </div>
     </div>
   );

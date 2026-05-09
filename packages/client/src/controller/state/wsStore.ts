@@ -1,6 +1,6 @@
 import { signal, effect } from '@preact/signals';
 import { generateCode } from '../lib/codeGen';
-import { patch } from './patchStore';
+import { patch, activeOutput } from './patchStore';
 
 type WsStatus = 'disconnected' | 'connecting' | 'paired';
 
@@ -17,7 +17,7 @@ function scheduleSend() {
   if (sendDebounce) clearTimeout(sendDebounce);
   sendDebounce = setTimeout(() => {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const code = generateCode(patch.value);
+    const code = generateCode(patch.value, activeOutput.value);
     ws.send(JSON.stringify({ type: 'patch', code }));
   }, 16);
 }
@@ -50,7 +50,7 @@ export function connect(sid: string) {
       lastError.value = null;
       stopPatchSync?.();
       // effect() runs immediately (sends current patch) then on every change
-      stopPatchSync = effect(() => { void patch.value; scheduleSend(); });
+      stopPatchSync = effect(() => { void patch.value; void activeOutput.value; scheduleSend(); });
     } else if (msg.type === 'error') {
       lastError.value = (msg as { type: 'error'; message: string }).message;
       console.error('[controller] hydra eval error:', lastError.value);
