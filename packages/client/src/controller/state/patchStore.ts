@@ -67,7 +67,7 @@ interface PatchStore {
 
   // Source
   setSource(chainId: string, fnName: string): void;
-  setSourceArg(chainId: string, argIndex: number, value: number): void;
+  setSourceArg(chainId: string, argIndex: number, arg: ArgumentValue): void;
 
   // Transforms — dense array, no gaps
   /** Insert a new transform at `index` (0 = before all transforms) */
@@ -76,18 +76,18 @@ interface PatchStore {
   replaceTransform(chainId: string, index: number, fnName: string): void;
   /** Remove transform at `index`; remaining transforms shift left */
   removeTransform(chainId: string, index: number): void;
-  setTransformArg(chainId: string, index: number, argIndex: number, value: number): void;
+  setTransformArg(chainId: string, index: number, argIndex: number, arg: ArgumentValue): void;
 
   // Sub-chain (inside combine / combineCoord transforms)
   // path = [i0, i1, ...] navigates to the SubChain to modify:
   //   [2]    → chain.transforms[2].subChain
   //   [2, 1] → chain.transforms[2].subChain.transforms[1].subChain
   setSubChainSource(chainId: string, path: number[], fnName: string): void;
-  setSubChainSourceArg(chainId: string, path: number[], argIndex: number, value: number): void;
+  setSubChainSourceArg(chainId: string, path: number[], argIndex: number, arg: ArgumentValue): void;
   insertSubChainTransform(chainId: string, path: number[], index: number, fnName: string): void;
   replaceSubChainTransform(chainId: string, path: number[], index: number, fnName: string): void;
   removeSubChainTransform(chainId: string, path: number[], index: number): void;
-  setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, value: number): void;
+  setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, arg: ArgumentValue): void;
 
   // Chain-level
   setOutput(chainId: string, output: Chain['output']): void;
@@ -111,14 +111,14 @@ export const usePatchStore = create<PatchStore>((set) => ({
     }));
   },
 
-  setSourceArg(chainId, argIndex, value) {
+  setSourceArg(chainId, argIndex, arg) {
     set(state => ({
       patch: {
         ...state.patch,
         chains: state.patch.chains.map(c => {
           if (c.id !== chainId) return c;
           const args = [...c.source.args];
-          args[argIndex] = { mode: 'static', value };
+          args[argIndex] = arg;
           return { ...c, source: { ...c.source, args } };
         }),
       },
@@ -165,7 +165,7 @@ export const usePatchStore = create<PatchStore>((set) => ({
     }));
   },
 
-  setTransformArg(chainId, index, argIndex, value) {
+  setTransformArg(chainId, index, argIndex, arg) {
     set(state => ({
       patch: {
         ...state.patch,
@@ -175,7 +175,7 @@ export const usePatchStore = create<PatchStore>((set) => ({
           const t = transforms[index];
           if (!t) return c;
           const args = [...t.args];
-          args[argIndex] = { mode: 'static', value };
+          args[argIndex] = arg;
           transforms[index] = { ...t, args };
           return { ...c, transforms };
         }),
@@ -197,7 +197,7 @@ export const usePatchStore = create<PatchStore>((set) => ({
     }));
   },
 
-  setSubChainSourceArg(chainId, path, argIndex, value) {
+  setSubChainSourceArg(chainId, path, argIndex, arg) {
     set(state => ({
       patch: {
         ...state.patch,
@@ -205,7 +205,7 @@ export const usePatchStore = create<PatchStore>((set) => ({
           if (c.id !== chainId) return c;
           return applyToSubChain(c, path, sc => {
             const args = [...sc.source.args];
-            args[argIndex] = { mode: 'static', value };
+            args[argIndex] = arg;
             return { ...sc, source: { ...sc.source, args } };
           });
         }),
@@ -260,7 +260,7 @@ export const usePatchStore = create<PatchStore>((set) => ({
     }));
   },
 
-  setSubChainTransformArg(chainId, path, nodeIdx, argIdx, value) {
+  setSubChainTransformArg(chainId, path, nodeIdx, argIdx, arg) {
     set(state => ({
       patch: {
         ...state.patch,
@@ -271,7 +271,7 @@ export const usePatchStore = create<PatchStore>((set) => ({
             const node = transforms[nodeIdx];
             if (!node) return sc;
             const args = [...node.args];
-            args[argIdx] = { mode: 'static', value };
+            args[argIdx] = arg;
             transforms[nodeIdx] = { ...node, args };
             return { ...sc, transforms };
           });

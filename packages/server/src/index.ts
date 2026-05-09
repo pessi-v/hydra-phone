@@ -1,5 +1,6 @@
 import { createServer, IncomingMessage } from 'http';
 import { networkInterfaces, hostname } from 'os';
+import { execSync } from 'node:child_process';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -35,8 +36,21 @@ function getLanIp(): string | null {
 }
 
 const LAN_IP = getLanIp();
-const rawHostname = hostname();
-const MDNS_HOST = rawHostname.endsWith('.local') ? rawHostname : `${rawHostname}.local`;
+
+function getMdnsHost(): string {
+  // On macOS, scutil --get LocalHostName returns the Bonjour/mDNS hostname,
+  // which may differ from os.hostname() (e.g. "m2-air" vs "Mac").
+  if (process.platform === 'darwin') {
+    try {
+      const local = execSync('scutil --get LocalHostName', { encoding: 'utf8' }).trim();
+      if (local) return `${local}.local`;
+    } catch { /* fall through */ }
+  }
+  const raw = hostname();
+  return raw.endsWith('.local') ? raw : `${raw}.local`;
+}
+
+const MDNS_HOST = getMdnsHost();
 
 console.log(`LAN IP:      ${LAN_IP ?? 'not found'}`);
 console.log(`mDNS:        ${MDNS_HOST}`);

@@ -12,9 +12,11 @@ interface Props {
   step: number;
   color: string;
   onChange: (value: number) => void;
+  /** When provided, renders a toggle button that switches the arg to array mode */
+  onSwitchToArray?: () => void;
 }
 
-export function SliderRow({ label, value, min, max, step, color, onChange }: Props) {
+export function SliderRow({ label, value, min, max, step, color, onChange, onSwitchToArray }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -109,18 +111,39 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
         >
           {label}
         </span>
-        <span
-          onDoubleClick={onDblClick}
-          style={{
-            fontSize: 10,
-            color: "#fff",
-            fontFamily: "monospace",
-            userSelect: "none",
-            cursor: "text",
-          }}
-        >
-          {display}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span
+            onDoubleClick={onDblClick}
+            style={{
+              fontSize: 10,
+              color: "#fff",
+              fontFamily: "monospace",
+              userSelect: "none",
+              cursor: "text",
+            }}
+          >
+            {display}
+          </span>
+          {onSwitchToArray && (
+            <button
+              onClick={onSwitchToArray}
+              title="Switch to array"
+              style={{
+                background: "transparent",
+                border: "1px solid #455A64",
+                borderRadius: 2,
+                color: "#607D8B",
+                fontSize: 9,
+                padding: "0 3px",
+                cursor: "pointer",
+                lineHeight: "1.5",
+                flexShrink: 0,
+              }}
+            >
+              [ ]
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Track + knob — pointer events handled on the container */}

@@ -1,8 +1,17 @@
 import type { Patch, Chain, FunctionNode, ArgumentValue, SubChain } from '../types';
 
 function argToString(arg: ArgumentValue): string {
-  // MVP: static only
-  return String(arg.value);
+  if (arg.mode === 'static') return String(arg.value);
+
+  // Array mode — emit [v0, v1, ...] with optional chained modifiers.
+  // fit() first (transforms values), then smooth/ease, then fast/offset.
+  let code = `[${arg.values.join(', ')}]`;
+  if (arg.fit !== undefined)                    code += `.fit(${arg.fit[0]}, ${arg.fit[1]})`;
+  if (arg.smooth !== undefined && arg.smooth !== 0) code += `.smooth(${arg.smooth})`;
+  if (arg.ease !== undefined)                   code += `.ease('${arg.ease}')`;
+  if (arg.fast !== undefined && arg.fast !== 1) code += `.fast(${arg.fast})`;
+  if (arg.offset !== undefined && arg.offset !== 0) code += `.offset(${arg.offset})`;
+  return code;
 }
 
 function subChainBodyToString(sc: SubChain): string {

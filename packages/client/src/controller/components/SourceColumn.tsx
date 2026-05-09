@@ -2,7 +2,7 @@ import { useState } from "react";
 import { usePatchStore } from "../state/patchStore";
 import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
-import { SliderRow } from "./SliderRow";
+import { ArgRow } from "./ArgRow";
 import { FunctionPicker } from "./FunctionPicker";
 
 interface Props {
@@ -64,15 +64,13 @@ export function SourceColumn({ chainId }: Props) {
       {/* Args */}
       <div style={{ flex: 1, overflowY: "auto", paddingTop: 4 }}>
         {def?.args.map((argDef, i) => (
-          <SliderRow
+          <ArgRow
             key={argDef.name}
             label={argDef.name}
-            value={source.args[i]?.value ?? argDef.default}
-            min={argDef.min}
-            max={argDef.max}
-            step={argDef.step}
+            arg={source.args[i] ?? { mode: "static", value: argDef.default }}
+            argDef={argDef}
             color={color}
-            onChange={(v) => setSourceArg(chainId, i, v)}
+            onChange={(arg) => setSourceArg(chainId, i, arg)}
           />
         ))}
       </div>

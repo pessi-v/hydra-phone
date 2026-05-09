@@ -1,7 +1,31 @@
 export type FunctionType = 'src' | 'coord' | 'color' | 'combine' | 'combineCoord';
 
-// MVP: static values only
-export type ArgumentValue = { mode: 'static'; value: number };
+export type EaseName =
+  | 'linear'
+  | 'easeInQuad'  | 'easeOutQuad'  | 'easeInOutQuad'
+  | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic'
+  | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart'
+  | 'easeInQuint' | 'easeOutQuint' | 'easeInOutQuint'
+  | 'sin';
+
+export type ArrayArgumentValue = {
+  mode: 'array';
+  values: number[];
+  /** Speed multiplier, default 1 */
+  fast?: number;
+  /** Interpolation smoothness 0–1, default 0 (off) */
+  smooth?: number;
+  /** Easing function name */
+  ease?: EaseName;
+  /** Phase offset 0–1, default 0 */
+  offset?: number;
+  /** Rescale array values to [low, high] */
+  fit?: [number, number];
+};
+
+export type ArgumentValue =
+  | { mode: 'static'; value: number }
+  | ArrayArgumentValue;
 
 // Nested source chain used as the first argument of combine / combineCoord functions
 export interface SubChain {
