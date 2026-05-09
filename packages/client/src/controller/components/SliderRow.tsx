@@ -51,7 +51,7 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
     (e: PointerEvent) => {
       e.preventDefault();
       dragging.current = true;
-      e.currentTarget.setPointerCapture(e.pointerId);
+      (e.currentTarget as Element | null)?.setPointerCapture(e.pointerId);
       onChange(valueAt(e.clientX));
     },
     [onChange, valueAt],
@@ -110,7 +110,7 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
           {label}
         </span>
         <span
-          onDoubleClick={onDblClick}
+          onDblClick={onDblClick}
           style={{
             fontSize: 10,
             color: "#fff",
