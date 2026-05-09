@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ComponentChildren } from 'preact';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { usePatchStore } from './state/patchStore';
 import { useWsStore } from './state/wsStore';
 import { SourceColumn } from './components/SourceColumn';
@@ -22,7 +23,7 @@ const MAX_VISIBLE_COLS = 7;
 // path = [2]     → transforms are from chain.transforms[2].subChain
 // path = [2,1]   → transforms are from ...transforms[2].subChain.transforms[1].subChain
 
-type ColEntry = { key: string; el: React.ReactNode };
+type ColEntry = { key: string; el: ComponentChildren };
 
 function buildCols(
   chainId: string,
@@ -104,7 +105,7 @@ function buildCols(
 
 // ── LandscapeAdapter ─────────────────────────────────────────────────────────
 
-function LandscapeAdapter({ children }: { children: React.ReactNode }) {
+function LandscapeAdapter({ children }: { children: ComponentChildren }) {
   const [isPortrait, setIsPortrait] = useState(
     () => window.innerHeight > window.innerWidth
   );
