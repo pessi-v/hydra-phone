@@ -27,7 +27,7 @@ function chainToString(chain: Chain): string {
   return `${source}${transforms}.out(${chain.output})`;
 }
 
-export function generateCode(patch: Patch): string {
+export function generateCode(patch: Patch, activeOutput: 'o0' | 'o1' | 'o2' | 'o3'): string {
   const lines: string[] = [];
 
   if (patch.globalSettings.speed !== 1) {
@@ -43,6 +43,8 @@ export function generateCode(patch: Patch): string {
 
   if (patch.globalSettings.renderMode === 'quad') {
     lines.push('render()');
+  } else {
+    lines.push(`render(${activeOutput})`);
   }
 
   return lines.join('\n');
