@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef } from "preact/hooks";
 import { SLIDER_TRACK } from "../lib/constants";
 
 const KNOB_R = 7; // visual radius in px — knob diameter = 14px
@@ -48,7 +48,7 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
   );
 
   const onDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: PointerEvent) => {
       e.preventDefault();
       dragging.current = true;
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -58,7 +58,7 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
   );
 
   const onMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: PointerEvent) => {
       if (!dragging.current) return;
       onChange(valueAt(e.clientX));
     },

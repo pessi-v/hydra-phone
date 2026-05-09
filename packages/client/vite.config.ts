@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import preact from '@preact/preset-vite';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [preact()],
   define: {
     // Required for hydra-synth which uses `global` internally
     global: 'globalThis',

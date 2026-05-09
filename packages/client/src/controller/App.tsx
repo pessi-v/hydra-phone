@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePatchStore } from './state/patchStore';
-import { useWsStore } from './state/wsStore';
+import type { ComponentChildren } from 'preact';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { patch } from './state/patchStore';
+import { wsStatus, sessionId } from './state/wsStore';
 import { SourceColumn } from './components/SourceColumn';
 import { TransformColumn } from './components/TransformColumn';
 import { SubChainSourceColumn } from './components/SubChainSourceColumn';
@@ -22,7 +23,7 @@ const MAX_VISIBLE_COLS = 7;
 // path = [2]     → transforms are from chain.transforms[2].subChain
 // path = [2,1]   → transforms are from ...transforms[2].subChain.transforms[1].subChain
 
-type ColEntry = { key: string; el: React.ReactNode };
+type ColEntry = { key: string; el: ComponentChildren };
 
 function buildCols(
   chainId: string,
@@ -104,7 +105,7 @@ function buildCols(
 
 // ── LandscapeAdapter ─────────────────────────────────────────────────────────
 
-function LandscapeAdapter({ children }: { children: React.ReactNode }) {
+function LandscapeAdapter({ children }: { children: ComponentChildren }) {
   const [isPortrait, setIsPortrait] = useState(
     () => window.innerHeight > window.innerWidth
   );
@@ -177,8 +178,9 @@ export function App() {
   // blendId of every blend/modulate node whose sub-chain is currently expanded
   const [expandedBlends, setExpandedBlends] = useState<Set<string>>(new Set());
 
-  const chain = usePatchStore(s => s.patch.chains[0]);
-  const { status, sessionId } = useWsStore();
+  const chain = patch.value.chains[0];
+  const status = wsStatus.value;
+  const sid = sessionId.value;
 
   const toggleBlend = useCallback((id: string) => {
     setExpandedBlends(prev => {
@@ -218,8 +220,8 @@ export function App() {
 
   return (
     <LandscapeAdapter>
-      {status !== 'paired' && sessionId && <PairingOverlay sessionId={sessionId} />}
-      {!sessionId && (
+      {status !== 'paired' && sid && <PairingOverlay sessionId={sid} />}
+      {!sid && (
         <div style={{
           position: 'fixed', inset: 0, background: PAGE_BG,
           display: 'flex', alignItems: 'center', justifyContent: 'center',

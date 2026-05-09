@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { usePatchStore } from "../state/patchStore";
+import { useState } from "preact/hooks";
+import { patch, setSource, setSourceArg, insertTransform } from "../state/patchStore";
 import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
@@ -13,12 +13,7 @@ export function SourceColumn({ chainId }: Props) {
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
-  const source = usePatchStore(
-    (s) => s.patch.chains.find((c) => c.id === chainId)?.source,
-  );
-  const setSource = usePatchStore((s) => s.setSource);
-  const setSourceArg = usePatchStore((s) => s.setSourceArg);
-  const insertTransform = usePatchStore((s) => s.insertTransform);
+  const source = patch.value.chains.find((c) => c.id === chainId)?.source;
 
   if (!source) return null;
 

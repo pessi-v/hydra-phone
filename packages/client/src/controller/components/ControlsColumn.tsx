@@ -1,5 +1,5 @@
-import { usePatchStore } from '../state/patchStore';
-import { useWsStore } from '../state/wsStore';
+import { patch, setOutput } from '../state/patchStore';
+import { wsStatus, lastError } from '../state/wsStore';
 import { generateCode } from '../lib/codeGen';
 import { CONTROLS_BG, OUTPUT_BUFFERS } from '../lib/constants';
 import type { Chain } from '../types';
@@ -11,14 +11,12 @@ interface Props {
 }
 
 export function ControlsColumn({ chainId, codeVisible, onToggleCode }: Props) {
-  const output = usePatchStore(s => s.patch.chains.find(c => c.id === chainId)?.output);
-  const patch = usePatchStore(s => s.patch);
-  const setOutput = usePatchStore(s => s.setOutput);
-  const wsStatus = useWsStore(s => s.status);
-  const lastError = useWsStore(s => s.lastError);
+  const output = patch.value.chains.find(c => c.id === chainId)?.output;
+  const status = wsStatus.value;
+  const error = lastError.value;
 
-  const statusColor = wsStatus === 'paired' ? '#4CAF50' : wsStatus === 'connecting' ? '#FF8C00' : '#E91E63';
-  const statusLabel = wsStatus === 'paired' ? 'live' : wsStatus === 'connecting' ? 'wait' : 'off';
+  const statusColor = status === 'paired' ? '#4CAF50' : status === 'connecting' ? '#FF8C00' : '#E91E63';
+  const statusLabel = status === 'paired' ? 'live' : status === 'connecting' ? 'wait' : 'off';
 
   return (
     <div style={{
@@ -83,12 +81,12 @@ export function ControlsColumn({ chainId, codeVisible, onToggleCode }: Props) {
       </button>
 
       {/* Error display */}
-      {lastError && (
+      {error && (
         <div style={{
           fontSize: 8, color: '#E91E63', wordBreak: 'break-word',
           background: '#E91E6322', borderRadius: 4, padding: 4,
         }}>
-          {lastError.slice(0, 80)}
+          {error.slice(0, 80)}
         </div>
       )}
 
@@ -96,7 +94,7 @@ export function ControlsColumn({ chainId, codeVisible, onToggleCode }: Props) {
 
       {/* Generated code preview (hidden, shown via overlay) */}
       <div style={{ fontSize: 7, color: '#455A64', textAlign: 'center' }}>
-        {generateCode(patch).split('\n').length} line{generateCode(patch).split('\n').length !== 1 ? 's' : ''}
+        {generateCode(patch.value).split('\n').length} line{generateCode(patch.value).split('\n').length !== 1 ? 's' : ''}
       </div>
     </div>
   );
