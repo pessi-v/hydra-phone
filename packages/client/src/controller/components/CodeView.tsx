@@ -1,4 +1,4 @@
-import { usePatchStore } from '../state/patchStore';
+import { patch } from '../state/patchStore';
 import { generateCode } from '../lib/codeGen';
 
 interface Props {
@@ -6,8 +6,7 @@ interface Props {
 }
 
 export function CodeView({ onClose }: Props) {
-  const patch = usePatchStore(s => s.patch);
-  const code = generateCode(patch);
+  const code = generateCode(patch.value);
 
   return (
     <>

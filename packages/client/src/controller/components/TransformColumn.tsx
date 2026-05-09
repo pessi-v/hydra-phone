@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { usePatchStore } from "../state/patchStore";
+import { useState } from "preact/hooks";
+import { patch, replaceTransform, removeTransform, insertTransform, setTransformArg } from "../state/patchStore";
 import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
@@ -22,13 +22,7 @@ export function TransformColumn({
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
-  const transform = usePatchStore(
-    (s) => s.patch.chains.find((c) => c.id === chainId)?.transforms[index],
-  );
-  const replaceTransform = usePatchStore((s) => s.replaceTransform);
-  const removeTransform = usePatchStore((s) => s.removeTransform);
-  const insertTransform = usePatchStore((s) => s.insertTransform);
-  const setTransformArg = usePatchStore((s) => s.setTransformArg);
+  const transform = patch.value.chains.find((c) => c.id === chainId)?.transforms[index];
 
   if (!transform) return null;
 

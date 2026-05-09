@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { usePatchStore } from "../state/patchStore";
+import { useState } from "preact/hooks";
+import { patch, replaceSubChainTransform, removeSubChainTransform, insertSubChainTransform, setSubChainTransformArg } from "../state/patchStore";
 import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
@@ -41,24 +41,8 @@ export function SubChainTransformColumn({
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
-  const transform = usePatchStore((s) => {
-    const chain = s.patch.chains.find((c) => c.id === chainId);
-    if (!chain) return undefined;
-    return getNodeAtPath(chain, path, subIndex);
-  });
-
-  const replaceSubChainTransform = usePatchStore(
-    (s) => s.replaceSubChainTransform,
-  );
-  const removeSubChainTransform = usePatchStore(
-    (s) => s.removeSubChainTransform,
-  );
-  const insertSubChainTransform = usePatchStore(
-    (s) => s.insertSubChainTransform,
-  );
-  const setSubChainTransformArg = usePatchStore(
-    (s) => s.setSubChainTransformArg,
-  );
+  const chain = patch.value.chains.find((c) => c.id === chainId);
+  const transform = chain ? getNodeAtPath(chain, path, subIndex) : undefined;
 
   if (!transform) return null;
 

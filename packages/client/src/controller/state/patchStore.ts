@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { signal } from '@preact/signals';
 import { nanoid } from 'nanoid';
 import type { Patch, Chain, FunctionNode, ArgumentValue, SubChain } from '../types';
 import { getFunctionDef } from '../lib/functionRegistry';
@@ -62,243 +62,139 @@ function applyToNode(
   return { ...node, subChain: { ...node.subChain, transforms: subTransforms } };
 }
 
-interface PatchStore {
-  patch: Patch;
+// ── State ─────────────────────────────────────────────────────────────────────
 
-  // Source
-  setSource(chainId: string, fnName: string): void;
-  setSourceArg(chainId: string, argIndex: number, value: number): void;
+export const patch = signal<Patch>({
+  chains: [makeChain('osc')],
+  globalSettings: { bpm: 30, speed: 1, renderMode: 'single' },
+});
 
-  // Transforms — dense array, no gaps
-  /** Insert a new transform at `index` (0 = before all transforms) */
-  insertTransform(chainId: string, index: number, fnName: string): void;
-  /** Replace the function at `index` without changing its position */
-  replaceTransform(chainId: string, index: number, fnName: string): void;
-  /** Remove transform at `index`; remaining transforms shift left */
-  removeTransform(chainId: string, index: number): void;
-  setTransformArg(chainId: string, index: number, argIndex: number, value: number): void;
-
-  // Sub-chain (inside combine / combineCoord transforms)
-  // path = [i0, i1, ...] navigates to the SubChain to modify:
-  //   [2]    → chain.transforms[2].subChain
-  //   [2, 1] → chain.transforms[2].subChain.transforms[1].subChain
-  setSubChainSource(chainId: string, path: number[], fnName: string): void;
-  setSubChainSourceArg(chainId: string, path: number[], argIndex: number, value: number): void;
-  insertSubChainTransform(chainId: string, path: number[], index: number, fnName: string): void;
-  replaceSubChainTransform(chainId: string, path: number[], index: number, fnName: string): void;
-  removeSubChainTransform(chainId: string, path: number[], index: number): void;
-  setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, value: number): void;
-
-  // Chain-level
-  setOutput(chainId: string, output: Chain['output']): void;
-  setRenderMode(mode: Patch['globalSettings']['renderMode']): void;
+function updateChain(chainId: string, updater: (c: Chain) => Chain) {
+  patch.value = {
+    ...patch.value,
+    chains: patch.value.chains.map(c => c.id === chainId ? updater(c) : c),
+  };
 }
 
-export const usePatchStore = create<PatchStore>((set) => ({
-  patch: {
-    chains: [makeChain('osc')],
-    globalSettings: { bpm: 30, speed: 1, renderMode: 'single' },
-  },
+// ── Source ────────────────────────────────────────────────────────────────────
 
-  setSource(chainId, fnName) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c =>
-          c.id === chainId ? { ...c, source: makeNode(fnName) } : c
-        ),
-      },
-    }));
-  },
+export function setSource(chainId: string, fnName: string) {
+  updateChain(chainId, c => ({ ...c, source: makeNode(fnName) }));
+}
 
-  setSourceArg(chainId, argIndex, value) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          const args = [...c.source.args];
-          args[argIndex] = { mode: 'static', value };
-          return { ...c, source: { ...c.source, args } };
-        }),
-      },
-    }));
-  },
+export function setSourceArg(chainId: string, argIndex: number, value: number) {
+  updateChain(chainId, c => {
+    const args = [...c.source.args];
+    args[argIndex] = { mode: 'static', value };
+    return { ...c, source: { ...c.source, args } };
+  });
+}
 
-  insertTransform(chainId, index, fnName) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          const transforms = [...c.transforms];
-          transforms.splice(index, 0, makeNode(fnName));
-          return { ...c, transforms };
-        }),
-      },
-    }));
-  },
+// ── Transforms ────────────────────────────────────────────────────────────────
 
-  replaceTransform(chainId, index, fnName) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          const transforms = [...c.transforms];
-          transforms[index] = makeNode(fnName);
-          return { ...c, transforms };
-        }),
-      },
-    }));
-  },
+export function insertTransform(chainId: string, index: number, fnName: string) {
+  updateChain(chainId, c => {
+    const transforms = [...c.transforms];
+    transforms.splice(index, 0, makeNode(fnName));
+    return { ...c, transforms };
+  });
+}
 
-  removeTransform(chainId, index) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return { ...c, transforms: c.transforms.filter((_, i) => i !== index) };
-        }),
-      },
-    }));
-  },
+export function replaceTransform(chainId: string, index: number, fnName: string) {
+  updateChain(chainId, c => {
+    const transforms = [...c.transforms];
+    transforms[index] = makeNode(fnName);
+    return { ...c, transforms };
+  });
+}
 
-  setTransformArg(chainId, index, argIndex, value) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          const transforms = [...c.transforms];
-          const t = transforms[index];
-          if (!t) return c;
-          const args = [...t.args];
-          args[argIndex] = { mode: 'static', value };
-          transforms[index] = { ...t, args };
-          return { ...c, transforms };
-        }),
-      },
-    }));
-  },
+export function removeTransform(chainId: string, index: number) {
+  updateChain(chainId, c => ({
+    ...c, transforms: c.transforms.filter((_, i) => i !== index),
+  }));
+}
 
-  // ── Sub-chain actions ────────────────────────────────────────────────────
+export function setTransformArg(chainId: string, index: number, argIndex: number, value: number) {
+  updateChain(chainId, c => {
+    const transforms = [...c.transforms];
+    const t = transforms[index];
+    if (!t) return c;
+    const args = [...t.args];
+    args[argIndex] = { mode: 'static', value };
+    transforms[index] = { ...t, args };
+    return { ...c, transforms };
+  });
+}
 
-  setSubChainSource(chainId, path, fnName) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return applyToSubChain(c, path, sc => ({ ...sc, source: makeNode(fnName) }));
-        }),
-      },
-    }));
-  },
+// ── Sub-chain actions ─────────────────────────────────────────────────────────
 
-  setSubChainSourceArg(chainId, path, argIndex, value) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return applyToSubChain(c, path, sc => {
-            const args = [...sc.source.args];
-            args[argIndex] = { mode: 'static', value };
-            return { ...sc, source: { ...sc.source, args } };
-          });
-        }),
-      },
-    }));
-  },
+export function setSubChainSource(chainId: string, path: number[], fnName: string) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => ({ ...sc, source: makeNode(fnName) }))
+  );
+}
 
-  insertSubChainTransform(chainId, path, index, fnName) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return applyToSubChain(c, path, sc => {
-            const transforms = [...sc.transforms];
-            transforms.splice(index, 0, makeNode(fnName));
-            return { ...sc, transforms };
-          });
-        }),
-      },
-    }));
-  },
+export function setSubChainSourceArg(chainId: string, path: number[], argIndex: number, value: number) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => {
+      const args = [...sc.source.args];
+      args[argIndex] = { mode: 'static', value };
+      return { ...sc, source: { ...sc.source, args } };
+    })
+  );
+}
 
-  replaceSubChainTransform(chainId, path, index, fnName) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return applyToSubChain(c, path, sc => {
-            const transforms = [...sc.transforms];
-            transforms[index] = makeNode(fnName);
-            return { ...sc, transforms };
-          });
-        }),
-      },
-    }));
-  },
+export function insertSubChainTransform(chainId: string, path: number[], index: number, fnName: string) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => {
+      const transforms = [...sc.transforms];
+      transforms.splice(index, 0, makeNode(fnName));
+      return { ...sc, transforms };
+    })
+  );
+}
 
-  removeSubChainTransform(chainId, path, index) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return applyToSubChain(c, path, sc => ({
-            ...sc,
-            transforms: sc.transforms.filter((_, i) => i !== index),
-          }));
-        }),
-      },
-    }));
-  },
+export function replaceSubChainTransform(chainId: string, path: number[], index: number, fnName: string) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => {
+      const transforms = [...sc.transforms];
+      transforms[index] = makeNode(fnName);
+      return { ...sc, transforms };
+    })
+  );
+}
 
-  setSubChainTransformArg(chainId, path, nodeIdx, argIdx, value) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c => {
-          if (c.id !== chainId) return c;
-          return applyToSubChain(c, path, sc => {
-            const transforms = [...sc.transforms];
-            const node = transforms[nodeIdx];
-            if (!node) return sc;
-            const args = [...node.args];
-            args[argIdx] = { mode: 'static', value };
-            transforms[nodeIdx] = { ...node, args };
-            return { ...sc, transforms };
-          });
-        }),
-      },
-    }));
-  },
+export function removeSubChainTransform(chainId: string, path: number[], index: number) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => ({
+      ...sc, transforms: sc.transforms.filter((_, i) => i !== index),
+    }))
+  );
+}
 
-  // ── Chain-level ──────────────────────────────────────────────────────────
+export function setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, value: number) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => {
+      const transforms = [...sc.transforms];
+      const node = transforms[nodeIdx];
+      if (!node) return sc;
+      const args = [...node.args];
+      args[argIdx] = { mode: 'static', value };
+      transforms[nodeIdx] = { ...node, args };
+      return { ...sc, transforms };
+    })
+  );
+}
 
-  setOutput(chainId, output) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        chains: state.patch.chains.map(c =>
-          c.id === chainId ? { ...c, output } : c
-        ),
-      },
-    }));
-  },
+// ── Chain-level ───────────────────────────────────────────────────────────────
 
-  setRenderMode(mode) {
-    set(state => ({
-      patch: {
-        ...state.patch,
-        globalSettings: { ...state.patch.globalSettings, renderMode: mode },
-      },
-    }));
-  },
-}));
+export function setOutput(chainId: string, output: Chain['output']) {
+  updateChain(chainId, c => ({ ...c, output }));
+}
+
+export function setRenderMode(mode: Patch['globalSettings']['renderMode']) {
+  patch.value = {
+    ...patch.value,
+    globalSettings: { ...patch.value.globalSettings, renderMode: mode },
+  };
+}

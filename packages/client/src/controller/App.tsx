@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { usePatchStore } from './state/patchStore';
-import { useWsStore } from './state/wsStore';
+import { patch } from './state/patchStore';
+import { wsStatus, sessionId } from './state/wsStore';
 import { SourceColumn } from './components/SourceColumn';
 import { TransformColumn } from './components/TransformColumn';
 import { SubChainSourceColumn } from './components/SubChainSourceColumn';
@@ -178,8 +178,9 @@ export function App() {
   // blendId of every blend/modulate node whose sub-chain is currently expanded
   const [expandedBlends, setExpandedBlends] = useState<Set<string>>(new Set());
 
-  const chain = usePatchStore(s => s.patch.chains[0]);
-  const { status, sessionId } = useWsStore();
+  const chain = patch.value.chains[0];
+  const status = wsStatus.value;
+  const sid = sessionId.value;
 
   const toggleBlend = useCallback((id: string) => {
     setExpandedBlends(prev => {
@@ -219,8 +220,8 @@ export function App() {
 
   return (
     <LandscapeAdapter>
-      {status !== 'paired' && sessionId && <PairingOverlay sessionId={sessionId} />}
-      {!sessionId && (
+      {status !== 'paired' && sid && <PairingOverlay sessionId={sid} />}
+      {!sid && (
         <div style={{
           position: 'fixed', inset: 0, background: PAGE_BG,
           display: 'flex', alignItems: 'center', justifyContent: 'center',

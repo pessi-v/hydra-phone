@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { usePatchStore } from "../state/patchStore";
+import { useState } from "preact/hooks";
+import { patch, setSubChainSource, setSubChainSourceArg, insertSubChainTransform } from "../state/patchStore";
 import { getFunctionDef } from "../lib/functionRegistry";
 import { CATEGORY_COLORS } from "../lib/constants";
 import { SliderRow } from "./SliderRow";
@@ -26,17 +26,8 @@ export function SubChainSourceColumn({ chainId, path, blendColor }: Props) {
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
 
-  const source = usePatchStore((s) => {
-    const chain = s.patch.chains.find((c) => c.id === chainId);
-    if (!chain) return undefined;
-    return getSubChainAtPath(chain, path)?.source;
-  });
-
-  const setSubChainSource = usePatchStore((s) => s.setSubChainSource);
-  const setSubChainSourceArg = usePatchStore((s) => s.setSubChainSourceArg);
-  const insertSubChainTransform = usePatchStore(
-    (s) => s.insertSubChainTransform,
-  );
+  const chain = patch.value.chains.find((c) => c.id === chainId);
+  const source = chain ? getSubChainAtPath(chain, path)?.source : undefined;
 
   if (!source) return null;
 
