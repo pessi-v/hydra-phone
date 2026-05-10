@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals';
 import { nanoid } from 'nanoid';
-import type { Patch, Chain, FunctionNode, ArgumentValue, SubChain } from '../types';
+import type { Patch, Chain, FunctionNode, ArgumentValue, ArrayFnNode, SubChain } from '../types';
 import { getFunctionDef } from '../lib/functionRegistry';
 
 function makeNode(fnName: string): FunctionNode {
@@ -9,7 +9,7 @@ function makeNode(fnName: string): FunctionNode {
   const node: FunctionNode = {
     name: def.name,
     type: def.type,
-    args: def.args.map((a): ArgumentValue => ({ mode: 'static', value: a.default })),
+    args: def.args.map((a): ArgumentValue => ({ mode: 'static', values: [a.default], arrayChain: [], arrayId: nanoid(6) })),
   };
   if (def.type === 'combine' || def.type === 'combineCoord') {
     node.blendId = nanoid(6);
@@ -93,10 +93,18 @@ export function setSource(chainId: string, fnName: string) {
   updateChain(chainId, c => ({ ...c, source: makeNode(fnName) }));
 }
 
-export function setSourceArg(chainId: string, argIndex: number, value: number) {
+export function setSourceArg(chainId: string, argIndex: number, values: number[]) {
   updateChain(chainId, c => {
     const args = [...c.source.args];
-    args[argIndex] = { mode: 'static', value };
+    args[argIndex] = { ...args[argIndex], values };
+    return { ...c, source: { ...c.source, args } };
+  });
+}
+
+export function setSourceArgChain(chainId: string, argIndex: number, arrayChain: ArrayFnNode[]) {
+  updateChain(chainId, c => {
+    const args = [...c.source.args];
+    args[argIndex] = { ...args[argIndex], arrayChain };
     return { ...c, source: { ...c.source, args } };
   });
 }
@@ -125,13 +133,25 @@ export function removeTransform(chainId: string, index: number) {
   }));
 }
 
-export function setTransformArg(chainId: string, index: number, argIndex: number, value: number) {
+export function setTransformArg(chainId: string, index: number, argIndex: number, values: number[]) {
   updateChain(chainId, c => {
     const transforms = [...c.transforms];
     const t = transforms[index];
     if (!t) return c;
     const args = [...t.args];
-    args[argIndex] = { mode: 'static', value };
+    args[argIndex] = { ...args[argIndex], values };
+    transforms[index] = { ...t, args };
+    return { ...c, transforms };
+  });
+}
+
+export function setTransformArgChain(chainId: string, index: number, argIndex: number, arrayChain: ArrayFnNode[]) {
+  updateChain(chainId, c => {
+    const transforms = [...c.transforms];
+    const t = transforms[index];
+    if (!t) return c;
+    const args = [...t.args];
+    args[argIndex] = { ...args[argIndex], arrayChain };
     transforms[index] = { ...t, args };
     return { ...c, transforms };
   });
@@ -145,11 +165,21 @@ export function setSubChainSource(chainId: string, path: number[], fnName: strin
   );
 }
 
-export function setSubChainSourceArg(chainId: string, path: number[], argIndex: number, value: number) {
+export function setSubChainSourceArg(chainId: string, path: number[], argIndex: number, values: number[]) {
   updateChain(chainId, c =>
     applyToSubChain(c, path, sc => {
       const args = [...sc.source.args];
-      args[argIndex] = { mode: 'static', value };
+      args[argIndex] = { ...args[argIndex], values };
+      return { ...sc, source: { ...sc.source, args } };
+    })
+  );
+}
+
+export function setSubChainSourceArgChain(chainId: string, path: number[], argIndex: number, arrayChain: ArrayFnNode[]) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => {
+      const args = [...sc.source.args];
+      args[argIndex] = { ...args[argIndex], arrayChain };
       return { ...sc, source: { ...sc.source, args } };
     })
   );
@@ -183,14 +213,28 @@ export function removeSubChainTransform(chainId: string, path: number[], index: 
   );
 }
 
-export function setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, value: number) {
+export function setSubChainTransformArg(chainId: string, path: number[], nodeIdx: number, argIdx: number, values: number[]) {
   updateChain(chainId, c =>
     applyToSubChain(c, path, sc => {
       const transforms = [...sc.transforms];
       const node = transforms[nodeIdx];
       if (!node) return sc;
       const args = [...node.args];
-      args[argIdx] = { mode: 'static', value };
+      args[argIdx] = { ...args[argIdx], values };
+      transforms[nodeIdx] = { ...node, args };
+      return { ...sc, transforms };
+    })
+  );
+}
+
+export function setSubChainTransformArgChain(chainId: string, path: number[], nodeIdx: number, argIdx: number, arrayChain: ArrayFnNode[]) {
+  updateChain(chainId, c =>
+    applyToSubChain(c, path, sc => {
+      const transforms = [...sc.transforms];
+      const node = transforms[nodeIdx];
+      if (!node) return sc;
+      const args = [...node.args];
+      args[argIdx] = { ...args[argIdx], arrayChain };
       transforms[nodeIdx] = { ...node, args };
       return { ...sc, transforms };
     })

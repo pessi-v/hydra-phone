@@ -1,4 +1,25 @@
-import type { FunctionDef, FunctionType } from "../types";
+import type { FunctionDef, FunctionType, ArgDef } from "../types";
+
+export interface ArrayFnDef {
+  name: string;
+  args: ArgDef[];
+}
+
+const ARRAY_REGISTRY: ArrayFnDef[] = [
+  { name: "fast",   args: [{ name: "speed",      default: 1.5, min: 0,   max: 10, step: 0.05 }] },
+  { name: "smooth", args: [{ name: "smoothness",  default: 1,   min: 0,   max: 1,  step: 0.01 }] },
+  { name: "ease",   args: [{ name: "amount",      default: 0.5, min: 0,   max: 1,  step: 0.01 }] },
+  { name: "offset", args: [{ name: "amount",      default: 0.5, min: 0,   max: 1,  step: 0.01 }] },
+  { name: "fit",    args: [
+    { name: "lo", default: 0, min: -10, max: 10, step: 0.01 },
+    { name: "hi", default: 1, min: -10, max: 10, step: 0.01 },
+  ]},
+];
+
+const arrayByName = new Map<string, ArrayFnDef>(ARRAY_REGISTRY.map(f => [f.name, f]));
+
+export function getArrayFunctions(): ArrayFnDef[] { return ARRAY_REGISTRY; }
+export function getArrayFunctionDef(name: string): ArrayFnDef | undefined { return arrayByName.get(name); }
 
 // MVP subset — all functions available in Phase 1
 const REGISTRY: FunctionDef[] = [

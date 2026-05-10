@@ -16,6 +16,7 @@ export const CATEGORY_LABELS: Record<FunctionType, string> = {
   combineCoord: "Modulate",
 };
 
+export const ARRAY_FN_COLOR = "#DC43FE";
 export const CONTROLS_BG = "#37474F";
 export const PAGE_BG = "#1A1A2E";
 export const TEXT_PRIMARY = "#FFFFFF";

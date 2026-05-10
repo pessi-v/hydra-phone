@@ -1,8 +1,12 @@
 import type { Patch, Chain, FunctionNode, ArgumentValue, SubChain } from '../types';
 
 function argToString(arg: ArgumentValue): string {
-  // MVP: static only
-  return String(arg.value);
+  if (arg.values.length === 1 && arg.arrayChain.length === 0) return String(arg.values[0]);
+  let s = `[${arg.values.join(', ')}]`;
+  for (const fn of arg.arrayChain) {
+    s += `.${fn.name}(${fn.args.join(', ')})`;
+  }
+  return s;
 }
 
 function subChainBodyToString(sc: SubChain): string {
