@@ -1,6 +1,6 @@
 # Hydra-phone
 
-This is a graphical, block-based smartphone UI for [Hydra live coding video synth](https://hydra.ojack.xyz). The project is in an early phase, so not all of the Hydra features are implemented yet. The UI is built with Preact in TypeScript. The communication between the first device and the smartphone is established using WebSockets, after which a WebRTC p2p connection is used for the data.
+This is a graphical, block-based smartphone UI for [Hydra live coding video synth](https://hydra.ojack.xyz). The project is in an early phase, so not all of the Hydra features are implemented yet. The UI is built with Preact in TypeScript. The communication between the first device and the smartphone works using WebSockets.
 
 ![Hydra output on a laptop screen](desktop.png)
 ![The smartphone UI](phone.png)
