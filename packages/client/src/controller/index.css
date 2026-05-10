@@ -1,44 +1,47 @@
-@import "tailwindcss";
-
-@theme {
-  --color-src: #FF8C00;
-  --color-coord: #4CAF50;
-  --color-color: #E91E63;
-  --color-combine: #2196F3;
-  --color-combine-coord: #9C27B0;
-  --color-controls: #37474F;
-  --color-bg: #1A1A2E;
+:root {
+  --color-src: #ff8c00;
+  --color-coord: #4caf50;
+  --color-color: #e91e63;
+  --color-combine: #2196f3;
+  --color-combine-coord: #9c27b0;
+  --color-controls: #37474f;
+  --color-bg: #1a1a2e;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   user-select: none;
+  font-family: monospace;
 }
 
 /* Native range input — hide default appearance, keep interaction */
-input[type='range'] {
+input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   outline: none;
 }
 
-input[type='range']::-webkit-slider-thumb {
+input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 0;
   height: 0;
 }
 
-input[type='range']::-moz-range-thumb {
+input[type="range"]::-moz-range-thumb {
   width: 0;
   height: 0;
   border: none;
@@ -53,6 +56,6 @@ input[type='range']::-moz-range-thumb {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #455A64;
+  background: #455a64;
   border-radius: 1px;
 }
