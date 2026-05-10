@@ -1,11 +1,15 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { patch, activeOutput } from './state/patchStore';
+import {
+  patch, activeOutput,
+  setSource, setSourceArg, insertTransform,
+  replaceTransform, removeTransform, setTransformArg,
+  setSubChainSource, setSubChainSourceArg,
+  insertSubChainTransform, replaceSubChainTransform,
+  removeSubChainTransform, setSubChainTransformArg,
+} from './state/patchStore';
 import { wsStatus, sessionId } from './state/wsStore';
-import { SourceColumn } from './components/SourceColumn';
-import { TransformColumn } from './components/TransformColumn';
-import { SubChainSourceColumn } from './components/SubChainSourceColumn';
-import { SubChainTransformColumn } from './components/SubChainTransformColumn';
+import { Column } from './components/Column';
 import { ControlsColumn } from './components/ControlsColumn';
 import { CodeView } from './components/CodeView';
 import { CATEGORY_COLORS, PAGE_BG } from './lib/constants';
@@ -29,11 +33,12 @@ function buildCols(
   chainId: string,
   transforms: FunctionNode[],
   path: number[],
-  parentBlendColor: string | null, // null = main chain (use TransformColumn)
+  parentBlendColor: string | null,
   expandedBlends: Set<string>,
   toggleBlend: (id: string) => void,
 ): ColEntry[] {
   const cols: ColEntry[] = [];
+  const isSubChain = parentBlendColor !== null;
 
   for (let i = 0; i < transforms.length; i++) {
     const t = transforms[i];
@@ -44,45 +49,42 @@ function buildCols(
     const ownColor = CATEGORY_COLORS[t.type];
     const toggle = isBlend && t.blendId ? () => toggleBlend(t.blendId!) : undefined;
 
-    if (parentBlendColor === null) {
-      // Main-chain transform
-      cols.push({
-        key: `t-${pathKey}`,
-        el: (
-          <TransformColumn
-            chainId={chainId}
-            index={i}
-            subChainExpanded={expanded}
-            onToggleSubChain={toggle}
-          />
-        ),
-      });
-    } else {
-      // Sub-chain transform (any depth)
-      cols.push({
-        key: `t-${pathKey}`,
-        el: (
-          <SubChainTransformColumn
-            chainId={chainId}
-            path={path}
-            subIndex={i}
-            blendColor={parentBlendColor}
-            subChainExpanded={expanded}
-            onToggleSubChain={toggle}
-          />
-        ),
-      });
-    }
+    cols.push({
+      key: `t-${pathKey}`,
+      el: (
+        <Column
+          node={t}
+          kind="transform"
+          blendColor={parentBlendColor ?? undefined}
+          subChainExpanded={expanded}
+          onReplace={isSubChain
+            ? (name) => replaceSubChainTransform(chainId, path, i, name)
+            : (name) => replaceTransform(chainId, i, name)}
+          onRemove={isSubChain
+            ? () => removeSubChainTransform(chainId, path, i)
+            : () => removeTransform(chainId, i)}
+          onArgChange={isSubChain
+            ? (argI, v) => setSubChainTransformArg(chainId, path, i, argI, v)
+            : (argI, v) => setTransformArg(chainId, i, argI, v)}
+          onAdd={isSubChain
+            ? (name) => insertSubChainTransform(chainId, path, i + 1, name)
+            : (name) => insertTransform(chainId, i + 1, name)}
+          onToggleSubChain={toggle}
+        />
+      ),
+    });
 
-    // If this blend node is expanded, insert its sub-chain columns next
     if (expanded && t.subChain) {
       cols.push({
         key: `src-${pathKey}`,
         el: (
-          <SubChainSourceColumn
-            chainId={chainId}
-            path={childPath}
+          <Column
+            node={t.subChain.source}
+            kind="source"
             blendColor={ownColor}
+            onReplace={(name) => setSubChainSource(chainId, childPath, name)}
+            onArgChange={(argI, v) => setSubChainSourceArg(chainId, childPath, argI, v)}
+            onAdd={(name) => insertSubChainTransform(chainId, childPath, 0, name)}
           />
         ),
       });
@@ -193,7 +195,18 @@ export function App() {
 
   // Build the flat column list (source + recursively expanded transforms)
   const cols: ColEntry[] = [
-    { key: 'src', el: <SourceColumn chainId={chain.id} /> },
+    {
+    key: 'src',
+    el: (
+      <Column
+        node={chain.source}
+        kind="source"
+        onReplace={(name) => setSource(chain.id, name)}
+        onArgChange={(i, v) => setSourceArg(chain.id, i, v)}
+        onAdd={(name) => insertTransform(chain.id, 0, name)}
+      />
+    ),
+  },
     ...buildCols(chain.id, chain.transforms, [], null, expandedBlends, toggleBlend),
   ];
 
