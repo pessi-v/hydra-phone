@@ -4,16 +4,18 @@ import {
   patch, activeOutput,
   setSource, setSourceArg, insertTransform,
   replaceTransform, removeTransform, setTransformArg,
-  setSubChainSource, setSubChainSourceArg,
+  setSubChainSource, setSubChainSourceArg, setSubChainSourceArgChain,
   insertSubChainTransform, replaceSubChainTransform,
-  removeSubChainTransform, setSubChainTransformArg,
+  removeSubChainTransform, setSubChainTransformArg, setSubChainTransformArgChain,
+  setSourceArgChain, setTransformArgChain,
 } from './state/patchStore';
 import { wsStatus, sessionId } from './state/wsStore';
 import { Column } from './components/Column';
 import { ControlsColumn } from './components/ControlsColumn';
 import { CodeView } from './components/CodeView';
 import { CATEGORY_COLORS, PAGE_BG } from './lib/constants';
-import type { FunctionNode } from './types';
+import { getArrayFunctionDef } from './lib/functionRegistry';
+import type { FunctionNode, ArrayFnNode } from './types';
 
 const MAX_VISIBLE_COLS = 7;
 
@@ -29,6 +31,49 @@ const MAX_VISIBLE_COLS = 7;
 
 type ColEntry = { key: string; el: ComponentChildren };
 
+function makeArrayFnCols(
+  node: FunctionNode,
+  keyPrefix: string,
+  expandedArrayChains: Set<string>,
+  setArgChain: (argIdx: number, chain: ArrayFnNode[]) => void,
+): ColEntry[] {
+  const cols: ColEntry[] = [];
+  for (let argIdx = 0; argIdx < node.args.length; argIdx++) {
+    const arg = node.args[argIdx];
+    if (arg.values.length <= 1 || arg.arrayChain.length === 0 || !expandedArrayChains.has(arg.arrayId)) continue;
+    const chain = arg.arrayChain;
+    for (let fnIdx = 0; fnIdx < chain.length; fnIdx++) {
+      const fnNode = chain[fnIdx];
+      const capturedArgIdx = argIdx;
+      const capturedFnIdx = fnIdx;
+      cols.push({
+        key: `arr-${keyPrefix}-a${capturedArgIdx}-f${capturedFnIdx}`,
+        el: (
+          <Column
+            kind="array-fn"
+            fnNode={fnNode}
+            isLast={capturedFnIdx === chain.length - 1}
+            onArgChange={(fnArgIdx, value) =>
+              setArgChain(capturedArgIdx, chain.map((fn, k) =>
+                k === capturedFnIdx
+                  ? { ...fn, args: fn.args.map((v, ai) => ai === fnArgIdx ? value : v) }
+                  : fn
+              ))
+            }
+            onRemove={() => setArgChain(capturedArgIdx, chain.filter((_, k) => k !== capturedFnIdx))}
+            onAdd={(name) => {
+              const fnDef = getArrayFunctionDef(name);
+              const newFn: ArrayFnNode = { name, args: fnDef?.args.map(a => a.default) ?? [] };
+              setArgChain(capturedArgIdx, [...chain, newFn]);
+            }}
+          />
+        ),
+      });
+    }
+  }
+  return cols;
+}
+
 function buildCols(
   chainId: string,
   transforms: FunctionNode[],
@@ -36,6 +81,8 @@ function buildCols(
   parentBlendColor: string | null,
   expandedBlends: Set<string>,
   toggleBlend: (id: string) => void,
+  expandedArrayChains: Set<string>,
+  toggleArrayChain: (id: string) => void,
 ): ColEntry[] {
   const cols: ColEntry[] = [];
   const isSubChain = parentBlendColor !== null;
@@ -57,6 +104,7 @@ function buildCols(
           kind="transform"
           blendColor={parentBlendColor ?? undefined}
           subChainExpanded={expanded}
+          expandedArgChains={expandedArrayChains}
           onReplace={isSubChain
             ? (name) => replaceSubChainTransform(chainId, path, i, name)
             : (name) => replaceTransform(chainId, i, name)}
@@ -66,13 +114,26 @@ function buildCols(
           onArgChange={isSubChain
             ? (argI, values) => setSubChainTransformArg(chainId, path, i, argI, values)
             : (argI, values) => setTransformArg(chainId, i, argI, values)}
+          onArgChainChange={isSubChain
+            ? (argI, chain) => setSubChainTransformArgChain(chainId, path, i, argI, chain)
+            : (argI, chain) => setTransformArgChain(chainId, i, argI, chain)}
           onAdd={isSubChain
             ? (name) => insertSubChainTransform(chainId, path, i + 1, name)
             : (name) => insertTransform(chainId, i + 1, name)}
           onToggleSubChain={toggle}
+          onToggleArgChain={toggleArrayChain}
         />
       ),
     });
+
+    cols.push(...makeArrayFnCols(
+      t,
+      pathKey,
+      expandedArrayChains,
+      isSubChain
+        ? (argIdx, chain) => setSubChainTransformArgChain(chainId, path, i, argIdx, chain)
+        : (argIdx, chain) => setTransformArgChain(chainId, i, argIdx, chain),
+    ));
 
     if (expanded && t.subChain) {
       cols.push({
@@ -82,12 +143,22 @@ function buildCols(
             node={t.subChain.source}
             kind="source"
             blendColor={ownColor}
+            expandedArgChains={expandedArrayChains}
             onReplace={(name) => setSubChainSource(chainId, childPath, name)}
             onArgChange={(argI, values) => setSubChainSourceArg(chainId, childPath, argI, values)}
+            onArgChainChange={(argI, chain) => setSubChainSourceArgChain(chainId, childPath, argI, chain)}
             onAdd={(name) => insertSubChainTransform(chainId, childPath, 0, name)}
+            onToggleArgChain={toggleArrayChain}
           />
         ),
       });
+
+      cols.push(...makeArrayFnCols(
+        t.subChain.source,
+        `src-${pathKey}`,
+        expandedArrayChains,
+        (argIdx, chain) => setSubChainSourceArgChain(chainId, childPath, argIdx, chain),
+      ));
 
       cols.push(
         ...buildCols(
@@ -97,6 +168,8 @@ function buildCols(
           ownColor,
           expandedBlends,
           toggleBlend,
+          expandedArrayChains,
+          toggleArrayChain,
         ),
       );
     }
@@ -179,6 +252,8 @@ export function App() {
 
   // blendId of every blend/modulate node whose sub-chain is currently expanded
   const [expandedBlends, setExpandedBlends] = useState<Set<string>>(new Set());
+  // arrayId of every arg array chain currently expanded
+  const [expandedArrayChains, setExpandedArrayChains] = useState<Set<string>>(new Set());
 
   const chain = patch.value.chains.find(c => c.output === activeOutput.value)!;
   const status = wsStatus.value;
@@ -193,21 +268,39 @@ export function App() {
     });
   }, []);
 
+  const toggleArrayChain = useCallback((id: string) => {
+    setExpandedArrayChains(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   // Build the flat column list (source + recursively expanded transforms)
   const cols: ColEntry[] = [
     {
-    key: 'src',
-    el: (
-      <Column
-        node={chain.source}
-        kind="source"
-        onReplace={(name) => setSource(chain.id, name)}
-        onArgChange={(i, values) => setSourceArg(chain.id, i, values)}
-        onAdd={(name) => insertTransform(chain.id, 0, name)}
-      />
+      key: 'src',
+      el: (
+        <Column
+          node={chain.source}
+          kind="source"
+          expandedArgChains={expandedArrayChains}
+          onReplace={(name) => setSource(chain.id, name)}
+          onArgChange={(i, values) => setSourceArg(chain.id, i, values)}
+          onArgChainChange={(i, c) => setSourceArgChain(chain.id, i, c)}
+          onAdd={(name) => insertTransform(chain.id, 0, name)}
+          onToggleArgChain={toggleArrayChain}
+        />
+      ),
+    },
+    ...makeArrayFnCols(
+      chain.source,
+      'src',
+      expandedArrayChains,
+      (argIdx, argChain) => setSourceArgChain(chain.id, argIdx, argChain),
     ),
-  },
-    ...buildCols(chain.id, chain.transforms, [], null, expandedBlends, toggleBlend),
+    ...buildCols(chain.id, chain.transforms, [], null, expandedBlends, toggleBlend, expandedArrayChains, toggleArrayChain),
   ];
 
   const numCols = cols.length;
