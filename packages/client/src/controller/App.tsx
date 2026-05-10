@@ -64,8 +64,8 @@ function buildCols(
             ? () => removeSubChainTransform(chainId, path, i)
             : () => removeTransform(chainId, i)}
           onArgChange={isSubChain
-            ? (argI, v) => setSubChainTransformArg(chainId, path, i, argI, v)
-            : (argI, v) => setTransformArg(chainId, i, argI, v)}
+            ? (argI, values) => setSubChainTransformArg(chainId, path, i, argI, values)
+            : (argI, values) => setTransformArg(chainId, i, argI, values)}
           onAdd={isSubChain
             ? (name) => insertSubChainTransform(chainId, path, i + 1, name)
             : (name) => insertTransform(chainId, i + 1, name)}
@@ -83,7 +83,7 @@ function buildCols(
             kind="source"
             blendColor={ownColor}
             onReplace={(name) => setSubChainSource(chainId, childPath, name)}
-            onArgChange={(argI, v) => setSubChainSourceArg(chainId, childPath, argI, v)}
+            onArgChange={(argI, values) => setSubChainSourceArg(chainId, childPath, argI, values)}
             onAdd={(name) => insertSubChainTransform(chainId, childPath, 0, name)}
           />
         ),
@@ -202,7 +202,7 @@ export function App() {
         node={chain.source}
         kind="source"
         onReplace={(name) => setSource(chain.id, name)}
-        onArgChange={(i, v) => setSourceArg(chain.id, i, v)}
+        onArgChange={(i, values) => setSourceArg(chain.id, i, values)}
         onAdd={(name) => insertTransform(chain.id, 0, name)}
       />
     ),

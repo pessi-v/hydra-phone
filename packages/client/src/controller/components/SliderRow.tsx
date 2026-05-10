@@ -12,9 +12,11 @@ interface Props {
   step: number;
   color: string;
   onChange: (value: number) => void;
+  onAdd?: () => void;
+  onRemove?: () => void;
 }
 
-export function SliderRow({ label, value, min, max, step, color, onChange }: Props) {
+export function SliderRow({ label, value, min, max, step, color, onChange, onAdd, onRemove }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -95,20 +97,58 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
           marginBottom: 3,
         }}
       >
-        <span
-          style={{
-            fontSize: 9,
-            color: "#B0BEC5",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-            textOverflow: "ellipsis",
-            maxWidth: "60%",
-          }}
-        >
-          {label}
-        </span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4, minWidth: 0, overflow: "hidden" }}>
+          {onRemove ? (
+            <button
+              onClick={onRemove}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#546E7A",
+                fontSize: 11,
+                lineHeight: 1,
+                padding: "0 1px",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
+          ) : (
+            <span
+              style={{
+                fontSize: 9,
+                color: "#B0BEC5",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                overflow: "hidden",
+                whiteSpace: "nowrap",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+              }}
+            >
+              {label}
+            </span>
+          )}
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              style={{
+                background: "none",
+                border: "none",
+                color: color,
+                fontSize: 9,
+                lineHeight: 1,
+                padding: "0 1px",
+                cursor: "pointer",
+                opacity: 0.7,
+                flexShrink: 0,
+              }}
+            >
+              [ add ]
+            </button>
+          )}
+        </div>
         <span
           onDblClick={onDblClick}
           style={{
@@ -117,6 +157,7 @@ export function SliderRow({ label, value, min, max, step, color, onChange }: Pro
             fontFamily: "monospace",
             userSelect: "none",
             cursor: "text",
+            flexShrink: 0,
           }}
         >
           {display}

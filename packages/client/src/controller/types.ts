@@ -1,7 +1,7 @@
 export type FunctionType = 'src' | 'coord' | 'color' | 'combine' | 'combineCoord';
 
 // MVP: static values only
-export type ArgumentValue = { mode: 'static'; value: number };
+export type ArgumentValue = { mode: 'static'; values: number[] };
 
 // Nested source chain used as the first argument of combine / combineCoord functions
 export interface SubChain {

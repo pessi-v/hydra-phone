@@ -13,7 +13,7 @@ interface Props {
   subChainExpanded?: boolean;
   onReplace: (name: string) => void;
   onRemove?: () => void;
-  onArgChange: (i: number, v: number) => void;
+  onArgChange: (i: number, values: number[]) => void;
   onAdd: (name: string) => void;
   onToggleSubChain?: () => void;
 }
@@ -93,18 +93,27 @@ export function Column({
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", paddingTop: 4 }}>
-        {def?.args.map((argDef, i) => (
-          <SliderRow
-            key={argDef.name}
-            label={argDef.name}
-            value={node.args[i]?.value ?? argDef.default}
-            min={argDef.min}
-            max={argDef.max}
-            step={argDef.step}
-            color={color}
-            onChange={(v) => onArgChange(i, v)}
-          />
-        ))}
+        {def?.args.map((argDef, i) => {
+          const values = node.args[i]?.values ?? [argDef.default];
+          return values.map((val, j) => (
+            <SliderRow
+              key={`${argDef.name}-${j}`}
+              label={j === 0 ? argDef.name : "·"}
+              value={val}
+              min={argDef.min}
+              max={argDef.max}
+              step={argDef.step}
+              color={color}
+              onChange={(v) => onArgChange(i, values.map((x, k) => k === j ? v : x))}
+              onAdd={j === 0
+                ? () => onArgChange(i, [...values, values[values.length - 1]])
+                : undefined}
+              onRemove={j > 0
+                ? () => onArgChange(i, values.filter((_, k) => k !== j))
+                : undefined}
+            />
+          ));
+        })}
 
         {node.subChain && onToggleSubChain && (
           <div style={{ padding: "0 6px" }}>
