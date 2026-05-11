@@ -33,7 +33,9 @@ type Props =
 export function Column(props: Props) {
   const [replacePicker, setReplacePicker] = useState(false);
   const [addPicker, setAddPicker] = useState(false);
-  const [addArrayPickerForArg, setAddArrayPickerForArg] = useState<number | null>(null);
+  const [addArrayPickerForArg, setAddArrayPickerForArg] = useState<
+    number | null
+  >(null);
 
   if (props.kind === "array-fn") {
     const { fnNode, isLast, onArgChange, onRemove, onAdd } = props;
@@ -117,7 +119,7 @@ export function Column(props: Props) {
               flexShrink: 0,
             }}
           >
-            • add
+            • add one
           </button>
         )}
 
@@ -135,9 +137,18 @@ export function Column(props: Props) {
   // ── source / transform ────────────────────────────────────────────────────
 
   const {
-    node, kind, blendColor, subChainExpanded, expandedArgChains,
-    onReplace, onRemove, onArgChange, onArgChainChange,
-    onAdd, onToggleSubChain, onToggleArgChain,
+    node,
+    kind,
+    blendColor,
+    subChainExpanded,
+    expandedArgChains,
+    onReplace,
+    onRemove,
+    onArgChange,
+    onArgChainChange,
+    onAdd,
+    onToggleSubChain,
+    onToggleArgChain,
   } = props;
 
   const def = getFunctionDef(node.name);
@@ -176,7 +187,9 @@ export function Column(props: Props) {
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
-          title={kind === "source" ? "Change source function" : "Change function"}
+          title={
+            kind === "source" ? "Change source function" : "Change function"
+          }
         >
           {node.name}
         </button>
@@ -216,13 +229,27 @@ export function Column(props: Props) {
                   max={argDef.max}
                   step={argDef.step}
                   color={color}
-                  onChange={(v) => onArgChange(i, values.map((x, k) => k === j ? v : x))}
-                  onAdd={j === 0
-                    ? () => onArgChange(i, [...values, values[values.length - 1]])
-                    : undefined}
-                  onRemove={j > 0
-                    ? () => onArgChange(i, values.filter((_, k) => k !== j))
-                    : undefined}
+                  onChange={(v) =>
+                    onArgChange(
+                      i,
+                      values.map((x, k) => (k === j ? v : x)),
+                    )
+                  }
+                  onAdd={
+                    j === 0
+                      ? () =>
+                          onArgChange(i, [...values, values[values.length - 1]])
+                      : undefined
+                  }
+                  onRemove={
+                    j > 0
+                      ? () =>
+                          onArgChange(
+                            i,
+                            values.filter((_, k) => k !== j),
+                          )
+                      : undefined
+                  }
                 />
               ))}
               {values.length > 1 && (
@@ -237,13 +264,13 @@ export function Column(props: Props) {
                         border: `1px dashed ${ARRAY_FN_COLOR}66`,
                         borderRadius: 3,
                         color: ARRAY_FN_COLOR,
-                        fontSize: 9,
+                        fontSize: 11,
                         fontFamily: "monospace",
                         padding: "3px 6px",
                         cursor: "pointer",
                       }}
                     >
-                      • add
+                      •
                     </button>
                   ) : (
                     <button
@@ -265,7 +292,8 @@ export function Column(props: Props) {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {expandedArgChains.has(arrayId) ? "▼" : "▶"} {chain.map(f => f.name).join(" · ")}
+                      {expandedArgChains.has(arrayId) ? "▼" : "▶"}{" "}
+                      {chain.map((f) => f.name).join(" · ")}
                     </button>
                   )}
                 </div>
@@ -303,7 +331,7 @@ export function Column(props: Props) {
         onClick={() => setAddPicker(true)}
         style={{
           background: "transparent",
-          border: `1px dashed ${(blendColor ?? color)}66`,
+          border: `1px dashed ${blendColor ?? color}66`,
           borderRadius: 4,
           margin: "4px 6px 6px",
           color: blendColor ?? color,
@@ -314,7 +342,7 @@ export function Column(props: Props) {
         }}
         title="Add function"
       >
-        • add
+        •
       </button>
 
       {replacePicker && (
@@ -336,10 +364,14 @@ export function Column(props: Props) {
           position="array"
           onSelect={(name) => {
             const fnDef = getArrayFunctionDef(name);
-            const newFn: ArrayFnNode = { name, args: fnDef?.args.map(a => a.default) ?? [] };
+            const newFn: ArrayFnNode = {
+              name,
+              args: fnDef?.args.map((a) => a.default) ?? [],
+            };
             onArgChainChange(addArrayPickerForArg!, [newFn]);
             const arrayId = node.args[addArrayPickerForArg!]?.arrayId;
-            if (arrayId && !expandedArgChains.has(arrayId)) onToggleArgChain(arrayId);
+            if (arrayId && !expandedArgChains.has(arrayId))
+              onToggleArgChain(arrayId);
           }}
           onClose={() => setAddArrayPickerForArg(null)}
         />
