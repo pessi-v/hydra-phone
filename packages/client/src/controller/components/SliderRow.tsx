@@ -16,7 +16,17 @@ interface Props {
   onRemove?: () => void;
 }
 
-export function SliderRow({ label, value, min, max, step, color, onChange, onAdd, onRemove }: Props) {
+export function SliderRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  color,
+  onChange,
+  onAdd,
+  onRemove,
+}: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -97,14 +107,22 @@ export function SliderRow({ label, value, min, max, step, color, onChange, onAdd
           marginBottom: 3,
         }}
       >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 4, minWidth: 0, overflow: "hidden" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 4,
+            minWidth: 0,
+            overflow: "hidden",
+          }}
+        >
           {onRemove ? (
             <button
               onClick={onRemove}
               style={{
                 background: "none",
                 border: "none",
-                color: "#546E7A",
+                color: "#B0BEC5",
                 fontSize: 11,
                 lineHeight: 1,
                 padding: "0 1px",

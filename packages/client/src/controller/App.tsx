@@ -20,7 +20,7 @@ import {
   setSourceArgChain,
   setTransformArgChain,
 } from "./state/patchStore";
-import { wsStatus, sessionId } from "./state/wsStore";
+import { wsStatus, sessionId, sendShowCode } from "./state/wsStore";
 import { Column } from "./components/Column";
 import { ControlsColumn } from "./components/ControlsColumn";
 import { CodeView } from "./components/CodeView";
@@ -322,6 +322,7 @@ function PairingOverlay({ sessionId }: { sessionId: string }) {
 
 export function App() {
   const [codeVisible, setCodeVisible] = useState(false);
+  const [showCodeOnDisplay, setShowCodeOnDisplay] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [thumbLeft, setThumbLeft] = useState(0);
   const [thumbWidth, setThumbWidth] = useState(100);
@@ -513,6 +514,12 @@ export function App() {
         <ControlsColumn
           codeVisible={codeVisible}
           onToggleCode={() => setCodeVisible((v) => !v)}
+          showCodeOnDisplay={showCodeOnDisplay}
+          onToggleShowCodeOnDisplay={() => setShowCodeOnDisplay((v) => {
+            const next = !v;
+            sendShowCode(next);
+            return next;
+          })}
         />
       </div>
 

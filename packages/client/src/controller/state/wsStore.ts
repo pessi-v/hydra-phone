@@ -79,6 +79,11 @@ export function connect(sid: string) {
   };
 }
 
+export function sendShowCode(visible: boolean) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'show_code', visible }));
+}
+
 export function disconnect() {
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;

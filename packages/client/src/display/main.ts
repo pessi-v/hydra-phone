@@ -12,6 +12,7 @@ sessionIdEl.textContent = `session: ${sessionId}`;
 // ─── QR Code ─────────────────────────────────────────────────────────────────
 
 const qrCanvas = document.getElementById('qr-canvas') as HTMLCanvasElement;
+const codeOverlay = document.getElementById('code-overlay') as HTMLDivElement;
 
 async function getCtrlUrl(): Promise<string> {
   const port = window.location.port;
@@ -102,7 +103,11 @@ function connect() {
       if (overlay) overlay.style.display = 'none';
       initHydra();
     } else if (msg.type === 'patch') {
-      evalPatch(msg['code'] as string);
+      const code = msg['code'] as string;
+      evalPatch(code);
+      codeOverlay.textContent = code;
+    } else if (msg.type === 'show_code') {
+      codeOverlay.style.display = (msg as { type: string; visible: boolean }).visible ? 'block' : 'none';
     } else if (msg.type === 'disconnected') {
       console.log('[display] controller disconnected — showing QR');
       const overlay = document.getElementById('qr-overlay');

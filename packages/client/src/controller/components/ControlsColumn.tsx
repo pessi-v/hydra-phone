@@ -7,9 +7,11 @@ import type { Chain } from '../types';
 interface Props {
   codeVisible: boolean;
   onToggleCode: () => void;
+  showCodeOnDisplay: boolean;
+  onToggleShowCodeOnDisplay: () => void;
 }
 
-export function ControlsColumn({ codeVisible, onToggleCode }: Props) {
+export function ControlsColumn({ codeVisible, onToggleCode, showCodeOnDisplay, onToggleShowCodeOnDisplay }: Props) {
   const output = activeOutput.value;
   const status = wsStatus.value;
   const error = lastError.value;
@@ -76,6 +78,21 @@ export function ControlsColumn({ codeVisible, onToggleCode }: Props) {
         }}
       >
         {'</>'}
+        <br />code
+      </button>
+
+      {/* Show code on display toggle */}
+      <button
+        onClick={onToggleShowCodeOnDisplay}
+        style={{
+          background: showCodeOnDisplay ? '#37474F' : '#263238',
+          border: `1px solid ${showCodeOnDisplay ? '#FF8C00' : '#455A64'}`,
+          borderRadius: 6, color: showCodeOnDisplay ? '#FF8C00' : '#B0BEC5',
+          fontSize: 9, padding: '6px 4px', cursor: 'pointer',
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+        }}
+      >
+        scr
         <br />code
       </button>
 
