@@ -96,26 +96,26 @@ export function SliderRow({
         : parseFloat(value.toFixed(3)).toString();
 
   return (
-    <div className="py-[3px] px-1.5">
+    <div className="py-[3px] px-1.5 my-10">
       {/* Label + value */}
       <div className="flex justify-between items-baseline mb-[3px]">
         <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
           {onRemove ? (
             <button
               onClick={onRemove}
-              className="bg-transparent border-0 text-[#B0BEC5] text-[11px] leading-none px-[1px] py-0 cursor-pointer shrink-0"
+              className="bg-transparent border-0 text-[#B0BEC5] text-[11px] leading-none px-px py-0 cursor-pointer shrink-0"
             >
               ×
             </button>
           ) : (
-            <span className="text-[9px] text-[#B0BEC5] uppercase tracking-[0.05em] overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
+            <span className="text-[9px] text-[#B0BEC5] uppercase tracking-wider overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
               {label}
             </span>
           )}
           {onAdd && (
             <button
               onClick={onAdd}
-              className="bg-transparent border-0 text-[9px] leading-none px-[1px] py-0 cursor-pointer opacity-70 shrink-0"
+              className="bg-transparent border-0 text-[9px] leading-none px-px py-0 cursor-pointer opacity-70 shrink-0"
               style={{ color }}
             >
               [ add ]
@@ -137,7 +137,7 @@ export function SliderRow({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        className="relative h-[20px] touch-none select-none cursor-pointer"
+        className="relative h-8 touch-none select-none cursor-pointer"
       >
         {/* Track bar — inset by KNOB_R on each side so the filled portion
             always ends exactly at the knob centre */}
@@ -154,7 +154,7 @@ export function SliderRow({
         {/* Knob — positioned so its left edge travels from 0 to (100% − 2·KNOB_R),
             keeping it fully within the container at both extremes */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-[14px] h-[14px] rounded-full bg-[#1A1A2E] pointer-events-none"
+          className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#1A1A2E] pointer-events-none"
           style={{
             left: `calc((100% - 14px) * ${pct / 100})`,
             border: `2px solid ${color}`,
