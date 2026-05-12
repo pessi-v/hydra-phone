@@ -2,7 +2,6 @@ import { useCallback, useRef } from "preact/hooks";
 import { SLIDER_TRACK } from "../lib/constants";
 
 const KNOB_R = 7; // visual radius in px — knob diameter = 14px
-const TRACK_H = 3; // track bar height in px
 
 interface Props {
   label: string;
@@ -97,71 +96,27 @@ export function SliderRow({
         : parseFloat(value.toFixed(3)).toString();
 
   return (
-    <div style={{ padding: "3px 6px" }}>
+    <div className="py-[3px] px-1.5">
       {/* Label + value */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: 3,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            gap: 4,
-            minWidth: 0,
-            overflow: "hidden",
-          }}
-        >
+      <div className="flex justify-between items-baseline mb-[3px]">
+        <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
           {onRemove ? (
             <button
               onClick={onRemove}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#B0BEC5",
-                fontSize: 11,
-                lineHeight: 1,
-                padding: "0 1px",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
+              className="bg-transparent border-0 text-[#B0BEC5] text-[11px] leading-none px-[1px] py-0 cursor-pointer shrink-0"
             >
               ×
             </button>
           ) : (
-            <span
-              style={{
-                fontSize: 9,
-                color: "#B0BEC5",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                overflow: "hidden",
-                whiteSpace: "nowrap",
-                textOverflow: "ellipsis",
-                minWidth: 0,
-              }}
-            >
+            <span className="text-[9px] text-[#B0BEC5] uppercase tracking-[0.05em] overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
               {label}
             </span>
           )}
           {onAdd && (
             <button
               onClick={onAdd}
-              style={{
-                background: "none",
-                border: "none",
-                color: color,
-                fontSize: 9,
-                lineHeight: 1,
-                padding: "0 1px",
-                cursor: "pointer",
-                opacity: 0.7,
-                flexShrink: 0,
-              }}
+              className="bg-transparent border-0 text-[9px] leading-none px-[1px] py-0 cursor-pointer opacity-70 shrink-0"
+              style={{ color }}
             >
               [ add ]
             </button>
@@ -169,14 +124,7 @@ export function SliderRow({
         </div>
         <span
           onDblClick={onDblClick}
-          style={{
-            fontSize: 10,
-            color: "#fff",
-            fontFamily: "monospace",
-            userSelect: "none",
-            cursor: "text",
-            flexShrink: 0,
-          }}
+          className="text-[10px] text-white font-mono select-none cursor-text shrink-0"
         >
           {display}
         </span>
@@ -189,54 +137,28 @@ export function SliderRow({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        style={{
-          position: "relative",
-          height: KNOB_R * 2 + 6, // extra height = easier finger tap area
-          touchAction: "none",
-          userSelect: "none",
-          cursor: "pointer",
-        }}
+        className="relative h-[20px] touch-none select-none cursor-pointer"
       >
         {/* Track bar — inset by KNOB_R on each side so the filled portion
             always ends exactly at the knob centre */}
         <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: KNOB_R,
-            right: KNOB_R,
-            height: TRACK_H,
-            transform: "translateY(-50%)",
-            background: SLIDER_TRACK,
-            borderRadius: TRACK_H / 2,
-            overflow: "hidden",
-          }}
+          className="absolute top-1/2 left-[7px] right-[7px] h-[3px] -translate-y-1/2 rounded-full overflow-hidden"
+          style={{ background: SLIDER_TRACK }}
         >
           <div
-            style={{
-              width: `${pct}%`,
-              height: "100%",
-              background: color,
-              borderRadius: "inherit",
-            }}
+            className="h-full rounded-[inherit]"
+            style={{ width: `${pct}%`, background: color }}
           />
         </div>
 
         {/* Knob — positioned so its left edge travels from 0 to (100% − 2·KNOB_R),
             keeping it fully within the container at both extremes */}
         <div
+          className="absolute top-1/2 -translate-y-1/2 w-[14px] h-[14px] rounded-full bg-[#1A1A2E] pointer-events-none"
           style={{
-            position: "absolute",
-            top: "50%",
-            left: `calc((100% - ${KNOB_R * 2}px) * ${pct / 100})`,
-            transform: "translateY(-50%)",
-            width: KNOB_R * 2,
-            height: KNOB_R * 2,
-            borderRadius: "50%",
-            background: "#1A1A2E",
+            left: `calc((100% - 14px) * ${pct / 100})`,
             border: `2px solid ${color}`,
             boxShadow: `0 0 0 1px ${color}44, 0 1px 4px rgba(0,0,0,0.5)`,
-            pointerEvents: "none",
           }}
         />
       </div>
