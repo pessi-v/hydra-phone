@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [tailwindcss(), preact()],
   define: {
     // Required for hydra-synth which uses `global` internally
     global: 'globalThis',
